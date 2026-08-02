@@ -36,7 +36,16 @@
 .gift-page .gift-card .gift-icon{font-size:2rem;margin-bottom:12px;color:var(--gold);}
 .gift-page .gift-card h3{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.2rem;margin-bottom:8px;}
 .gift-page .gift-card p{color:var(--text-light);font-size:0.95rem;margin-bottom:6px;}
-.gift-page .bank-detail{font-family:'Inter',sans-serif;font-size:0.85rem;color:var(--gold-light);padding:10px;background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.12);border-radius:var(--radius-sm);margin-top:10px;}
+.gift-page .bank-detail{font-family:'Inter',sans-serif;font-size:0.85rem;color:var(--gold-light);padding:10px;background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.12);border-radius:var(--radius-sm);margin-top:10px;word-break:break-word;}
+.gift-form-input{width:100%;padding:12px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.15);border-radius:10px;color:var(--text);outline:none;font-family:'Poppins',sans-serif;font-size:0.9rem;}
+.gift-form-input:focus{border-color:var(--gold);}
+.gift-form-label{display:block;font-size:0.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-light);margin-bottom:6px;font-weight:500;}
+.pledge-item{display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(212,175,55,0.08);border-radius:12px;margin-bottom:10px;text-align:left;}
+.pledge-item .pi-icon{width:40px;height:40px;border-radius:50%;background:rgba(212,175,55,0.1);display:flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0;}
+.pledge-item .pi-main{flex:1;}
+.pledge-item .pi-name{color:var(--gold);font-weight:600;font-size:0.9rem;font-family:'Poppins',sans-serif;}
+.pledge-item .pi-msg{color:var(--text-light);font-size:0.82rem;line-height:1.5;margin-top:2px;}
+.pledge-item .pi-time{color:rgba(160,152,136,0.5);font-size:0.72rem;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -94,7 +103,36 @@
 <div class="gift-page"><div class="container">
 <div class="section-title"><div class="label">Gift Registry</div><h2>Your Presence Is <span class="gold">The Gift</span></h2><div class="divider"></div></div>
 <p class="gift-intro">Your presence at our wedding is the greatest gift of all. However, if you wish to honor us with a gift, we have provided some options below.</p>
-<div class="gift-grid" id="giftGrid"><div class="gift-card"><div class="gift-icon"><i class="fas fa-heart"></i></div><h3>Bank Transfer</h3><div class="bank-detail" id="giftBankInfo">Bank details coming soon</div></div></div>
+<div class="gift-grid" id="giftGrid"></div>
+
+<div class="gift-card" id="pledgeCard" style="display:none;text-align:left;max-width:640px;margin:30px auto;">
+  <div class="gift-icon" style="text-align:center"><i class="fas fa-gift"></i></div>
+  <h3 style="text-align:center">Pledge a Gift</h3>
+  <p style="text-align:center;color:var(--text-light);font-size:0.9rem;margin-bottom:20px">Let us know which gift you'd love to give us — it helps us prepare for our big day.</p>
+  <div style="margin-bottom:14px">
+    <label class="gift-form-label">Your Name *</label>
+    <input type="text" id="pledgeName" class="gift-form-input" placeholder="Your full name" maxlength="60">
+  </div>
+  <div style="margin-bottom:14px">
+    <label class="gift-form-label">Email (optional)</label>
+    <input type="email" id="pledgeEmail" class="gift-form-input" placeholder="your@email.com">
+  </div>
+  <div style="margin-bottom:14px">
+    <label class="gift-form-label">Gift *</label>
+    <select id="pledgeGift" class="gift-form-input">
+      <option value="">Choose a gift...</option>
+      <option value="cash">Cash Gift / Money</option>
+      <option value="other">Other / Surprise Me</option>
+    </select>
+  </div>
+  <div style="margin-bottom:18px">
+    <label class="gift-form-label">Message (optional)</label>
+    <textarea id="pledgeMessage" class="gift-form-input" rows="3" placeholder="A short note for the couple..." maxlength="300"></textarea>
+  </div>
+  <button onclick="submitGiftPledge()" style="width:100%;justify-content:center;display:flex;align-items:center;gap:8px;padding:14px 28px;border-radius:50px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:var(--emerald);border:none;font-family:'Poppins',sans-serif;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:2px;cursor:pointer;transition:all 0.4s cubic-bezier(0.25,0.46,0.45,0.94);"><i class="fas fa-heart"></i> Pledge My Gift</button>
+</div>
+
+<div style="max-width:800px;margin:20px auto;" id="recentPledges"></div>
 </div></div>
 
 <!-- AI Concierge Widget -->
@@ -160,18 +198,161 @@ function showWidgetTyping(show){document.getElementById('aiWidgetTyping').classL
 </footer>
 
 <script>
+var GIFT_KEY='weddingGiftPledges';
+var PENDING_GIFTS_KEY='pendingGiftPledges';
+
+function escHtml(s){var d=document.createElement('div');d.textContent=(s===null||s===undefined)?'':String(s);return d.innerHTML;}
+function getWD(){try{return JSON.parse(localStorage.getItem('weddingData')||'{}');}catch(e){return{};}}
+function getPledges(){try{return JSON.parse(localStorage.getItem(GIFT_KEY)||'[]');}catch(e){return[];}}
+function savePledges(p){localStorage.setItem(GIFT_KEY,JSON.stringify(p));}
+
+function copyText(t){
+  if(navigator.clipboard){navigator.clipboard.writeText(t).then(function(){if(typeof showNotification==='function')showNotification('Copied to clipboard!','success');}).catch(function(){prompt('Copy:',t);});}
+  else{prompt('Copy:',t);}
+}
+
+function renderRegistry(d){
+  var grid=document.getElementById('giftGrid');
+  if(!grid)return;
+  var html='';
+  var hasBank=!!(d.bankName&&d.bankNumber);
+  if(hasBank){
+    var details=[d.bankName,d.bankAccount,d.bankNumber].filter(Boolean).join(' - ');
+    html+='<div class="gift-card"><div class="gift-icon"><i class="fas fa-university"></i></div><h3>Bank Transfer</h3><p>Send your gift directly to our account:</p><div class="bank-detail" id="giftBankInfo">'+escHtml(details)+'</div><button onclick="copyText(document.getElementById(\'giftBankInfo\').textContent)" style="margin-top:12px;padding:8px 20px;border-radius:50px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.25);color:var(--gold);font-family:Poppins,sans-serif;font-size:0.8rem;cursor:pointer;transition:all 0.3s" onmouseover="this.style.background=\'rgba(212,175,55,0.18)\'" onmouseout="this.style.background=\'rgba(212,175,55,0.1)\'"><i class="fas fa-copy"></i> Copy Account Details</button></div>';
+  }
+  var cash=[];
+  if(d.paypal)cash.push({label:'PayPal',url:d.paypal,icon:'fa-paypal'});
+  if(d.cashapp)cash.push({label:'CashApp',url:d.cashapp,icon:'fa-cash-app'});
+  if(d.registryLink)cash.push({label:'Registry Link',url:d.registryLink,icon:'fa-link'});
+  if(cash.length){
+    html+='<div class="gift-card"><div class="gift-icon"><i class="fas fa-hand-holding-heart"></i></div><h3>Online Cash Gifts</h3><p>Prefer an online cash gift? Use one of the options below.</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px">'+cash.map(function(c){return '<a href="'+escHtml(c.url)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:50px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.25);color:var(--gold);text-decoration:none;font-family:Poppins,sans-serif;font-size:0.8rem;transition:all 0.3s" onmouseover="this.style.background=\'rgba(212,175,55,0.18)\'" onmouseout="this.style.background=\'rgba(212,175,55,0.1)\'"><i class="fab '+c.icon+'"></i> '+escHtml(c.label)+'</a>';}).join('')+'</div></div>';
+  }
+  var items=(d.giftItems||d.gifts||[]).filter(function(g){return g&&g.name;});
+  items.forEach(function(g){
+    html+='<div class="gift-card"><div class="gift-icon"><i class="fas fa-gift"></i></div><h3>'+escHtml(g.name)+'</h3>'+(g.description?'<p>'+escHtml(g.description)+'</p>':'')+(g.price?'<p style="color:var(--gold);font-weight:600;">$'+escHtml(g.price)+'</p>':'')+'<button onclick="openPledge(\''+escHtml(g.name).replace(/'/g,"\\'")+'\')" style="margin-top:12px;padding:9px 22px;border-radius:50px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));border:none;color:var(--emerald);font-family:Poppins,sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer"><i class="fas fa-heart"></i> Pledge This Gift</button></div>';
+  });
+  if(!hasBank&&!cash.length&&!items.length){
+    html='<div class="gift-card"><div class="gift-icon"><i class="fas fa-heart"></i></div><h3>Bank Transfer</h3><div class="bank-detail">Bank details coming soon</div><p style="margin-top:14px;font-size:0.85rem;">Meanwhile, your kind wishes are the greatest gift of all.</p></div>';
+  }
+  grid.innerHTML=html;
+  var pc=document.getElementById('pledgeCard');
+  if(pc&&items.length)pc.style.display='block';
+}
+
+function fillPledgeSelect(d){
+  var sel=document.getElementById('pledgeGift');
+  if(!sel)return;
+  var items=(d.giftItems||d.gifts||[]).filter(function(g){return g&&g.name;});
+  items.forEach(function(g){
+    var opt=document.createElement('option');
+    opt.value=g.name;opt.textContent=g.name+(g.price?' ($'+g.price+')':'');
+    sel.appendChild(opt);
+  });
+}
+
+function openPledge(giftName){
+  var card=document.getElementById('pledgeCard');
+  if(card)card.style.display='block';
+  var sel=document.getElementById('pledgeGift');
+  if(sel&&giftName){sel.value=giftName;}
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function submitGiftPledge(){
+  var name=document.getElementById('pledgeName');
+  var email=document.getElementById('pledgeEmail');
+  var gift=document.getElementById('pledgeGift');
+  var msg=document.getElementById('pledgeMessage');
+  if(!name||!gift)return;
+  if(!name.value.trim()){name.style.borderColor='#ef4444';setTimeout(function(){name.style.borderColor='';},2000);return;}
+  if(!gift.value){gift.style.borderColor='#ef4444';setTimeout(function(){gift.style.borderColor='';},2000);return;}
+  var d=getWD();
+  var entry={
+    id:'pledge_'+Date.now().toString(36)+Math.random().toString(36).substr(2,5),
+    name:name.value.trim(),
+    email:email.value.trim(),
+    gift:gift.value,
+    message:msg?msg.value.trim():'',
+    weddingId:d.weddingId||'',
+    createdAt:Date.now()
+  };
+  var pledges=getPledges();
+  pledges.unshift(entry);
+  if(pledges.length>200)pledges.length=200;
+  savePledges(pledges);
+  name.value='';if(email)email.value='';if(msg)msg.value='';
+  if(gift)gift.value='';
+  if(typeof showNotification==='function')showNotification('Thank you! Your gift pledge has been received.','success');
+  renderPledges();
+  if(typeof fbAddDoc==='function'){
+    try{
+      fbAddDoc('gifts',{type:'pledge',id:entry.id,name:entry.name,email:entry.email,gift:entry.gift,message:entry.message,weddingId:entry.weddingId,createdAt:new Date(entry.createdAt).toISOString()}).catch(function(){});
+    }catch(e){}
+  }
+}
+
+function renderPledges(){
+  var box=document.getElementById('recentPledges');
+  if(!box)return;
+  var pledges=getPledges();
+  var approved=pledges.filter(function(p){return p.visible!==false;}).slice(0,12);
+  if(!approved.length){box.innerHTML='';return;}
+  var html='<div class="gift-card" style="text-align:left;background:rgba(255,255,255,0.02);"><div style="text-align:center;margin-bottom:18px"><div class="gift-icon"><i class="fas fa-hands-holding"></i></div><h3>Recently Pledged Gifts</h3><p>Thank you for your generosity!</p></div>';
+  approved.forEach(function(p){
+    html+='<div class="pledge-item"><div class="pi-icon"><i class="fas fa-gift"></i></div><div class="pi-main"><div class="pi-name">'+escHtml(p.name)+'</div><div style="color:var(--gold);font-size:0.8rem;margin-top:2px;">'+escHtml(p.gift)+'</div>'+(p.message?'<div class="pi-msg">'+escHtml(p.message)+'</div>':'')+'</div><div class="pi-time">'+timeAgoShort(p.createdAt)+'</div></div>';
+  });
+  html+='</div>';
+  box.innerHTML=html;
+}
+
+function timeAgoShort(ts){
+  if(!ts)return'';
+  var diff=Date.now()-ts;
+  if(diff<60000)return'Just now';
+  if(diff<3600000)return Math.floor(diff/60000)+'m ago';
+  if(diff<86400000)return Math.floor(diff/3600000)+'h ago';
+  if(diff<604800000)return Math.floor(diff/86400000)+'d ago';
+  return new Date(ts).toLocaleDateString();
+}
+
+function mergeRemotePledges(remote){
+  if(!Array.isArray(remote)||!remote.length)return;
+  var pledges=getPledges();
+  var ids={};
+  pledges.forEach(function(p){ids[p.id]=true;});
+  var changed=false;
+  remote.forEach(function(r){
+    if(r.type&&r.type!=='pledge')return;
+    var key=r.id||r.pid;
+    if(ids[key])return;
+    pledges.push({
+      id:key||('pledge_'+Date.now().toString(36)),
+      name:r.name||'Guest',
+      email:r.email||'',
+      gift:r.gift||'A Gift',
+      message:r.message||'',
+      weddingId:r.weddingId||'',
+      createdAt:r.createdAt?new Date(r.createdAt).getTime():Date.now()
+    });
+    ids[key]=true;changed=true;
+  });
+  if(changed){
+    pledges.sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+    if(pledges.length>200)pledges.length=200;
+    savePledges(pledges);
+    renderPledges();
+  }
+}
+
 async function load(){
-  try{
-    var d=await fbGetDoc('weddingInfo','main')||JSON.parse(localStorage.getItem('weddingData')||'{}');
-    var acc=d.bankAccount||d.account||{};
-    var info=acc.bankName||acc.bank?((acc.bankName||acc.bank)+' - '+(acc.accountName||'')+' - '+(acc.accountNumber||'')):null;
-    if(info)document.getElementById('giftBankInfo').textContent=info;
-    var items=d.giftItems||d.gifts||[];
-    var grid=document.getElementById('giftGrid');
-    if(items.length)grid.innerHTML+=items.map(function(g){
-      return '<div class="gift-card"><div class="gift-icon"><i class="fas fa-gift"></i></div><h3>'+(g.name||'')+'</h3>'+(g.description?'<p>'+g.description+'</p>':'')+(g.price?'<p style="color:var(--gold);font-weight:600;">$'+g.price+'</p>':'')+'</div>';
-    }).join('');
-  }catch(e){}
+  var d=getWD();
+  try{var fb=await fbGetDoc('weddingInfo','main');if(fb&&(fb.groomName||fb.bankName||fb.paypal||fb.giftItems))d=fb;}catch(e){}
+  renderRegistry(d);
+  fillPledgeSelect(d);
+  renderPledges();
+  if(typeof fbGetCollection==='function'){
+    try{fbGetCollection('gifts').then(mergeRemotePledges).catch(function(){});}catch(e){}
+  }
 }
 load();
 </script>
@@ -182,6 +363,7 @@ load();
 <script src="js/floating-panel.js"></script>
 </div><!-- /.page-wrapper -->
 <script src="js/auth.js"></script>
+<script src="js/auth-guard.js"></script>
 <script src="js/sidebar.js"></script>
 </body>
 </html>

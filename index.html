@@ -287,6 +287,9 @@
 <section class="section owner-dashboard-section" id="ownerDashboardSection" style="display:none;">
   <div class="container">
     <div id="ownerDashboardContainer"></div>
+    <div id="ownerGuestbookSection" style="margin-top:24px;border-top:1px solid rgba(212,175,55,0.1);padding-top:24px"></div>
+    <div id="ownerRemindersContainer" style="margin-top:24px;border-top:1px solid rgba(212,175,55,0.1);padding-top:24px"></div>
+    <div id="guestMessagesSection" style="margin-top:24px;border-top:1px solid rgba(212,175,55,0.1);padding-top:24px"></div>
   </div>
 </section>
 
@@ -352,11 +355,11 @@
   <div class="container">
     <div class="guest-cta-card">
       <div class="guest-cta-icon"><i class="fas fa-heart"></i></div>
-      <h3>Welcome to Our Wedding Website</h3>
-      <p>Sign in to manage your wedding details, or create an account to get started.</p>
+      <h3>Welcome to Our Wedding</h3>
+      <p>We are so excited to celebrate our special day with you! Browse the sections below to learn more about our love story, event details, and how to join us.</p>
       <div class="guest-cta-buttons">
-        <a href="login.html" class="welcome-btn welcome-btn-primary"><i class="fas fa-sign-in-alt"></i> Sign In</a>
-        <a href="signup.html" class="welcome-btn welcome-btn-gold"><i class="fas fa-user-plus"></i> Create Account</a>
+        <a href="#rsvp" class="welcome-btn welcome-btn-primary"><i class="fas fa-envelope"></i> RSVP Now</a>
+        <a href="#story" class="welcome-btn welcome-btn-gold"><i class="fas fa-heart"></i> Our Story</a>
       </div>
     </div>
   </div>
@@ -848,6 +851,7 @@
 <script>if(typeof FIREBASE_CONFIG!=='undefined'&&FIREBASE_CONFIG.apiKey!=='YOUR_API_KEY'){firebase.initializeApp(FIREBASE_CONFIG);}</script>
 <script src="js/firebase.js"></script>
 <script src="js/invitation-system.js"></script>
+<script src="js/share-security.js"></script>
 <script src="js/script.js"></script>
 <script src="js/homepage-inline.js" defer></script>
 <!-- AI Concierge Widget -->
@@ -924,7 +928,88 @@
 <script src="js/music.js"></script>
 <script src="js/publish.js"></script>
 <script src="js/owner-dashboard.js"></script>
+<script src="js/guestbook.js"></script>
+<script src="js/reminders.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/auth-guard.js"></script>
 <script src="js/sidebar.js"></script>
+<script>
+(function() {
+  function getWeddingData() {
+    try { return JSON.parse(localStorage.getItem('weddingData') || '{}'); } catch(e) { return {}; }
+  }
+  var escHtml = function(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  };
+
+  function applyPublishedState() {
+    var d = getWeddingData();
+    var published = !!d.isPublished;
+
+    var hide = function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    };
+
+    if (published) {
+      hide('welcomeCardSection');
+      hide('heroDraftCard');
+      hide('btnGetStarted');
+      hide('invitationCenterSection');
+
+      var rsvpBtn = document.getElementById('btnRSVP');
+      if (rsvpBtn) rsvpBtn.style.display = 'inline-flex';
+
+      var heroLabel = document.getElementById('heroLabel');
+      if (heroLabel) heroLabel.textContent = 'Our Wedding';
+
+      setTimeout(function() {
+        var dashContainer = document.getElementById('ownerDashboardContainer');
+        if (dashContainer && typeof renderOwnerDashboard === 'function') {
+          renderOwnerDashboard('ownerDashboardContainer');
+        }
+
+        var gbContainer = document.getElementById('ownerGuestbookSection');
+        if (gbContainer && typeof Guestbook !== 'undefined') {
+          Guestbook.renderOwnerGuestbookManager('ownerGuestbookSection');
+        }
+
+        var remContainer = document.getElementById('ownerRemindersContainer');
+        if (remContainer && typeof Reminders !== 'undefined') {
+          Reminders.renderRemindersSection('ownerRemindersContainer');
+        }
+
+        var guestMsgsContainer = document.getElementById('guestMessagesSection');
+        if (guestMsgsContainer) {
+          var dd = getWeddingData();
+          var guests = dd.guests || [];
+          var withMessages = guests.filter(function(g) { return g.message && g.message.trim(); }).slice(0, 5);
+          if (withMessages.length) {
+            guestMsgsContainer.innerHTML =
+              '<div class="owner-section"><h3><i class="fas fa-comment-dots"></i> Recent Guest Messages</h3><div class="owner-notif-list">' +
+              withMessages.map(function(g) {
+                return '<div class="owner-notif-item"><div class="owner-notif-icon" style="background:rgba(236,72,153,0.1);color:#ec4899"><i class="fas fa-heart"></i></div><div class="owner-notif-content"><strong>' + escHtml(g.guestName || g.name || 'Guest') + '</strong><span>' + escHtml(g.message || '') + '</span></div></div>';
+              }).join('') +
+              '</div></div>';
+          }
+        }
+      }, 300);
+    }
+  }
+
+  applyPublishedState();
+
+  document.addEventListener('wedding_published', function() {
+    applyPublishedState();
+  });
+
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'weddingData') {
+      applyPublishedState();
+    }
+  });
+})();
+</script>
 </body>
 </html>

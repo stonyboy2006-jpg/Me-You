@@ -8,11 +8,34 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.googleapis.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src 'self' https://www.google.com https://maps.google.com; media-src 'self' blob:;">
 <meta name="robots" content="index,follow">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Wedding Invitation">
-<meta property="og:description" content="Join us in celebrating our special day">
-<meta property="og:image" content="">
+<meta property="og:title" id="ogTitle" content="Wedding Invitation">
+<meta property="og:description" id="ogDesc" content="Join us in celebrating our special day">
+<meta property="og:image" id="ogImage" content="">
+<meta property="og:url" id="ogUrl" content="">
+<meta property="og:site_name" content="Forever & Always">
 <meta name="twitter:card" content="summary_large_image">
-<title>Wedding Invitation</title>
+<meta name="twitter:title" id="twTitle" content="Wedding Invitation">
+<meta name="twitter:description" id="twDesc" content="Join us in celebrating our special day">
+<meta name="twitter:image" id="twImage" content="">
+<link rel="canonical" id="canonicalLink" href="https://foreverandalwayswedding.com/invite/">
+<script type="application/ld+json" id="schemaJson">
+{
+  "@context": "https://schema.org",
+  "@type": "WeddingEvent",
+  "name": "Wedding Invitation",
+  "description": "Join us in celebrating our special day",
+  "url": "https://foreverandalwayswedding.com/invite/",
+  "eventStatus": "https://schema.org/EventScheduled",
+  "organizer": {
+    "@type": "Person",
+    "name": ""
+  }
+}
+</script>
+<title id="pageTitle">Wedding Invitation</title>
+<link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.svg">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -25,12 +48,111 @@
 <script src="js/firebase.js"></script>
 <link rel="stylesheet" href="css/design-system.css">
 <link rel="stylesheet" href="css/invite.css">
+<link rel="stylesheet" href="css/ai-concierge.css">
+<style>
+/* AI widget palette aliases for the invite page */
+:root{--gold:#D4AF37;--gold-dark:#B8962E;--dark:#0B0F19;--font-sans:'Poppins',sans-serif}
+.invite-page .ai-widget-window{bottom:88px}
+.invite-page .ai-widget-fab{position:fixed;bottom:24px;right:88px;z-index:9000;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#0B0F19;border:none;cursor:pointer;font-size:1.25rem;box-shadow:0 4px 20px rgba(212,175,55,0.4);display:flex;align-items:center;justify-content:center;transition:all 0.3s}
+.invite-page .ai-widget-fab:hover{transform:scale(1.1)}
+</style>
+<style id="phase19GuardStyles">
+/* Phase 19 — Lock Down Public Invitation Experience */
+/* Never show owner/admin/dashboard content on invite pages */
+html.invite-page .sidebar,
+html.invite-page #sidebarNav,
+html.invite-page #sidebarOverlay,
+html.invite-page #sidebarToggle,
+html.invite-page .sidebar-link,
+html.invite-page .auth-user-menu,
+html.invite-page .auth-user-dropdown,
+html.invite-page .auth-user-trigger,
+html.invite-page .auth-user-avatar,
+html.invite-page .auth-user-name,
+html.invite-page .auth-user-email,
+html.invite-page .auth-dropdown-item,
+html.invite-page .owner-dashboard,
+html.invite-page #ownerDashboardSection,
+html.invite-page .dash-btn-gold,
+html.invite-page .dash-header,
+html.invite-page .floating-wrapper,
+html.invite-page #floatingPanel,
+html.invite-page .fp-toggle,
+html.invite-page .edit-btn,
+html.invite-page .btn-publish,
+html.invite-page .publish-btn,
+html.invite-page #btnPublish,
+html.invite-page .admin-nav,
+html.invite-page .admin-link,
+html.invite-page [data-admin],
+html.invite-page [data-owner],
+html.invite-page [data-dev-credit],
+html.invite-page .notif-badge,
+html.invite-page .inner-back-btn,
+html.invite-page .welcome-dropdown,
+html.invite-page .owner-profile-dropdown,
+html.invite-page .draft-badge,
+html.invite-page .draft-indicator,
+html.invite-page .publish-indicator,
+html.invite-page .live-badge,
+html.invite-page .setup-progress,
+html.invite-page .setup-reminder,
+html.invite-page .setup-wizard,
+html.invite-page .notification-center,
+html.invite-page .account-menu,
+html.invite-page .logout-btn,
+html.invite-page .ai-assistant-widget,
+html.invite-page .publish-updates,
+html.invite-page .publish-button,
+html.invite-page .get-started-btn,
+html.invite-page .quick-actions-panel,
+html.invite-page .ds-toast-container {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  z-index: -9999 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+html.invite-page a[href*="dashboard"],
+html.invite-page a[href*="setup"],
+html.invite-page a[href*="planner"],
+html.invite-page a[href*="profile"],
+html.invite-page a[href*="settings"],
+html.invite-page a[href*="customize"],
+html.invite-page a[href*="developer"],
+html.invite-page a[href*="memories"],
+html.invite-page a[href*="admin"],
+html.invite-page a[href*="analytics"],
+html.invite-page a[href*="reports"],
+html.invite-page a[href*="guests"],
+html.invite-page a[href*="invitation-center"],
+html.invite-page a[href*="ai-assistant"],
+html.invite-page a[href*="preview"],
+html.invite-page a[href*="login"],
+html.invite-page a[href*="signup"],
+html.invite-page a[href*="forgot-password"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+html.invite-page [class*="dash-"],
+html.invite-page [id*="dash"],
+html.invite-page [class*="admin"],
+html.invite-page [class*="owner"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+</style>
 </head>
 <body>
+<noscript><div style="position:fixed;inset:0;z-index:99999;background:#0B0F19;display:flex;align-items:center;justify-content:center;font-family:sans-serif;color:#fff;padding:24px;text-align:center"><div><h2 style="font-family:serif;color:#D4AF37;margin-bottom:12px">JavaScript Required</h2><p>Please enable JavaScript to view this wedding invitation.</p></div></div></noscript>
 <a href="#main" class="skip-link" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:9999;background:#D4AF37;color:#0B0F19;padding:12px 24px;font-weight:600;text-decoration:none;border-radius:0 0 8px 0">Skip to content</a>
 
 <!-- Loading Screen -->
-<div class="invite-loading" id="loadingScreen">
+<div class="invite-loading" id="loadingScreen" role="status" aria-live="polite">
   <div class="spinner"></div>
   <p id="loadingStatus">Loading invitation...</p>
 </div>
@@ -39,12 +161,12 @@
 <div id="inviteContent" style="display:none" role="main">
 
 <!-- ====== HERO SECTION ====== -->
-<section class="invite-hero">
+<section class="invite-hero" id="main">
   <div class="invite-hero-bg" id="inviteHeroBg"></div>
   <div class="invite-hero-overlay"></div>
-  <div class="invite-hero-particles" id="heroParticles"></div>
+  <div class="invite-hero-particles" id="heroParticles" aria-hidden="true"></div>
   <div class="invite-hero-content">
-    <div class="invite-ornament">&#x1F48D;</div>
+    <div class="invite-ornament" aria-hidden="true">&#x1F48D;</div>
     <div class="invite-tagline" id="invTagline">Together With Their Families</div>
     <h1 class="invite-hero-names">
       <span id="invGroomName">Groom</span>
@@ -53,8 +175,8 @@
     </h1>
     <div class="invite-couple-photo">
       <div class="placeholder" id="couplePlaceholder"><i class="fas fa-heart"></i></div>
-      <img id="invGroomPhoto" src="" alt="Groom" style="display:none" loading="lazy" decoding="async">
-      <img id="invBridePhoto" src="" alt="Bride" style="display:none" loading="lazy" decoding="async">
+      <img id="invGroomPhoto" src="" alt="Groom's Photo" style="display:none" loading="lazy" decoding="async">
+      <img id="invBridePhoto" src="" alt="Bride's Photo" style="display:none" loading="lazy" decoding="async">
     </div>
     <div class="invite-info-row">
       <div class="invite-info-item"><i class="fas fa-calendar-alt"></i> <span id="invDate"></span></div>
@@ -72,21 +194,26 @@
 </section>
 
 <!-- ====== RSVP SECTION ====== -->
-<section class="invite-rsvp-section" id="rsvpSection">
+<section class="invite-rsvp-section" id="rsvpSection" aria-label="RSVP Section">
   <h2>Will You Join Us?</h2>
   <p class="rsvp-sub">Your presence is the greatest gift of all</p>
-  <div class="rsvp-buttons" id="rsvpButtons">
-    <button class="rsvp-btn rsvp-btn-accept" id="btnAccept"><i class="fas fa-heart"></i> Accept Invitation</button>
-    <button class="rsvp-btn rsvp-btn-decline" id="btnDecline"><i class="fas fa-times"></i> Decline Invitation</button>
+  <div class="rsvp-buttons" id="rsvpButtons" role="group" aria-label="RSVP options">
+    <button class="rsvp-btn rsvp-btn-accept" id="btnAccept" aria-label="Accept wedding invitation"><i class="fas fa-heart" aria-hidden="true"></i> Accept Invitation</button>
+    <button class="rsvp-btn rsvp-btn-maybe" id="btnMaybe" aria-label="Maybe attending"><i class="fas fa-clock" aria-hidden="true"></i> Maybe Attending</button>
+    <button class="rsvp-btn rsvp-btn-decline" id="btnDecline" aria-label="Decline invitation"><i class="fas fa-times" aria-hidden="true"></i> Decline Invitation</button>
   </div>
+</section>
+
+<!-- ====== GUESTBOOK SECTION ====== -->
+<section class="invite-guestbook" id="guestbookContainer">
 </section>
 
 <!-- ====== DETAILS SECTION ====== -->
 <section class="invite-details">
   <div class="container">
     <h2>Wedding Details</h2>
-    <div class="details-grid">
-      <div class="detail-card">
+    <div class="details-grid" role="list">
+      <div class="detail-card" role="listitem">
         <i class="fas fa-calendar-day"></i>
         <h4>Date & Time</h4>
         <p id="invDateDetail"><span id="invDate2"></span><br><span id="invTime2"></span></p>
@@ -119,6 +246,22 @@
   </div>
 </section>
 
+<!-- ====== TIMELINE ====== -->
+<section class="invite-timeline" id="timelineSection" style="display:none;">
+  <div class="container">
+    <h2 style="font-family:var(--font-heading);font-size:clamp(1.6rem,3.5vw,2.2rem);color:#fff;text-align:center;margin-bottom:36px">Wedding Timeline</h2>
+    <div class="timeline-container" id="invTimeline"></div>
+  </div>
+</section>
+
+<!-- ====== VIDEOS ====== -->
+<section class="invite-videos" id="videosSection" style="display:none;">
+  <div class="container">
+    <h2 style="font-family:var(--font-heading);font-size:clamp(1.6rem,3.5vw,2.2rem);color:#fff;text-align:center;margin-bottom:36px">Wedding Videos</h2>
+    <div class="videos-grid" id="invVideos"></div>
+  </div>
+</section>
+
 <!-- ====== MAP SECTION ====== -->
 <section class="invite-map-section">
   <div class="container">
@@ -132,6 +275,29 @@
   <div class="container">
     <h2>Our Gallery</h2>
     <div class="invite-gallery-grid" id="invGallery"></div>
+  </div>
+</section>
+
+<!-- ====== GIFT REGISTRY ====== -->
+<section class="invite-gift-registry" id="giftRegistrySection" style="display:none;">
+  <div class="container">
+    <h2 style="font-family:var(--font-heading);font-size:clamp(1.6rem,3.5vw,2.2rem);color:#fff;text-align:center;margin-bottom:8px">Gift Registry</h2>
+    <p style="color:var(--text-light);text-align:center;margin-bottom:36px">Your presence is the greatest gift, but if you wish to honor us further</p>
+    <div class="gift-registry-content" id="invGiftRegistry"></div>
+  </div>
+</section>
+
+<!-- ====== SHARE SECTION ====== -->
+<section class="invite-share-section" id="shareSection">
+  <div class="container">
+    <h2>Share the Invitation</h2>
+    <p class="share-sub">Help us spread the joy — share with family and friends</p>
+    <div class="invite-share-buttons" id="inviteShareButtons"></div>
+    <button class="invite-btn invite-btn-primary" id="inviteShareNative" style="display:none;margin:0 auto 24px" onclick="InviteSys.shareViaNative()"><i class="fas fa-share-alt"></i> Share via...</button>
+    <h3 style="font-family:var(--font-heading);color:var(--accent);margin-bottom:16px;font-size:1.1rem">Scan QR Code</h3>
+    <div class="invite-qr-container">
+      <div class="invite-qr-box" id="inviteQRContainer"></div>
+    </div>
   </div>
 </section>
 
@@ -159,20 +325,8 @@
   </div>
 </section>
 
-<!-- ====== SHARE SECTION ====== -->
-<section class="invite-share-section">
-  <h2>Share the Joy</h2>
-  <p class="share-sub">Help us spread the word about our special day</p>
-  <div class="invite-share-buttons" id="inviteShareButtons"></div>
-  <button class="invite-btn invite-btn-primary" id="inviteShareNative" style="display:none;margin-bottom:20px"><i class="fas fa-share-alt"></i> Share via</button>
-  <div class="invite-qr-container">
-    <div class="invite-qr-box" id="inviteQRContainer"></div>
-  </div>
-  <button class="invite-btn invite-btn-outline" onclick="InviteSys.downloadQR()" style="margin-top:12px"><i class="fas fa-download"></i> Download QR Code</button>
-</section>
-
 <!-- ====== RSVP FORM MODAL ====== -->
-<div class="rsvp-form-overlay" id="rsvpFormOverlay">
+<div class="rsvp-form-overlay" id="rsvpFormOverlay" role="dialog" aria-modal="true" aria-labelledby="rsvpFormTitle">
   <div class="rsvp-form-container" id="rsvpFormContainer">
     <h3 id="rsvpFormTitle">Accept Invitation</h3>
     <p class="form-sub">We'd love to know more about you</p>
@@ -184,13 +338,13 @@
           <input type="text" id="rsvpName" placeholder="Your full name" required>
         </div>
         <div class="rsvp-form-group">
-          <label>Email *</label>
-          <input type="email" id="rsvpEmail" placeholder="your@email.com" required>
+          <label>Email (optional)</label>
+          <input type="email" id="rsvpEmail" placeholder="your@email.com">
         </div>
       </div>
       <div class="rsvp-form-row">
         <div class="rsvp-form-group">
-          <label>Phone</label>
+          <label>Phone (optional)</label>
           <input type="tel" id="rsvpPhone" placeholder="+1 (555) 000-0000">
         </div>
         <div class="rsvp-form-group">
@@ -199,7 +353,18 @@
         </div>
       </div>
       <div class="rsvp-form-group">
-        <label>Personal Message</label>
+        <label>Meal Preference (optional)</label>
+        <select id="rsvpMealPreference">
+          <option value="">No preference</option>
+          <option value="chicken">Chicken</option>
+          <option value="beef">Beef</option>
+          <option value="fish">Fish</option>
+          <option value="vegetarian">Vegetarian</option>
+          <option value="vegan">Vegan</option>
+        </select>
+      </div>
+      <div class="rsvp-form-group">
+        <label>Special Message to Couple</label>
         <textarea id="rsvpMessage" placeholder="Share your wishes, blessings, or a favorite memory..." rows="3"></textarea>
       </div>
       <div class="form-actions">
@@ -211,7 +376,7 @@
 </div>
 
 <!-- ====== FOOTER ====== -->
-<footer class="invite-footer">
+<footer class="invite-footer" role="contentinfo">
   <div class="names" id="invFullNames">Forever & Always</div>
   <p>Designed with love for our special day</p>
 </footer>
@@ -223,8 +388,64 @@
 
 </div><!-- /inviteContent -->
 
+<!-- AI Concierge for Guests -->
+<button class="ai-widget-fab" id="aiWidgetFab" onclick="toggleAIWidget()" aria-label="Ask the wedding AI assistant"><i class="fas fa-robot"></i></button>
+<div class="ai-widget-window" id="aiWidgetWindow">
+  <div class="ai-widget-header">
+    <div class="ai-widget-header-icon"><i class="fas fa-robot"></i></div>
+    <div class="ai-widget-header-info">
+      <h4>AI Concierge</h4>
+      <p>Ask me anything</p>
+    </div>
+    <button class="ai-widget-close" onclick="toggleAIWidget()" aria-label="Close AI widget"><i class="fas fa-arrow-left"></i></button>
+  </div>
+  <div class="ai-widget-messages" id="aiWidgetMessages"></div>
+  <div class="ai-widget-typing" id="aiWidgetTyping">
+    <div class="bubble"><div class="dots"><span></span><span></span><span></span></div></div>
+  </div>
+  <div class="ai-widget-qs" id="aiWidgetQs"></div>
+  <div class="ai-widget-input-area">
+    <input class="ai-widget-input" id="aiWidgetInput" placeholder="Ask a question..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendWidgetMsg();}">
+    <button class="ai-widget-send" id="aiWidgetSend" onclick="sendWidgetMsg()" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
+  </div>
+</div>
+
+<script src="js/invite-guard.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/auth-guard.js"></script>
 <script src="js/invitation-system.js"></script>
+<script src="js/share-security.js"></script>
+<script src="js/guestbook.js"></script>
+<script src="js/reminders.js"></script>
+<script src="js/ai-concierge.js"></script>
 <script>
+// ===== AI CONCIERGE WIDGET (guests) =====
+function toggleAIWidget(){var w=document.getElementById('aiWidgetWindow');if(w)w.classList.toggle('open');}
+function addWidgetMsg(text,role){var c=document.getElementById('aiWidgetMessages');if(!c)return;var msg=document.createElement('div');msg.className='ai-widget-msg '+role;msg.innerHTML='<div class="bubble">'+String(text).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</div>';c.appendChild(msg);c.scrollTop=c.scrollHeight;}
+function showWidgetTyping(show){var t=document.getElementById('aiWidgetTyping');if(t)t.classList.toggle('show',show);}
+function sendWidgetMsg(){var i=document.getElementById('aiWidgetInput');if(!i)return;var t=i.value.trim();if(!t)return;i.value='';addWidgetMsg(t,'user');showWidgetTyping(true);if(typeof AIConcierge==='undefined'){showWidgetTyping(false);addWidgetMsg('The AI assistant is not available right now.','ai');return;}AIConcierge.processMessage(t).then(function(r){showWidgetTyping(false);addWidgetMsg(r.text||'','ai');}).catch(function(){showWidgetTyping(false);addWidgetMsg('Sorry, I had trouble answering that. Please try again.','ai');});}
+document.addEventListener('DOMContentLoaded',function(){
+  if(typeof AIConcierge==='undefined')return;
+  AIConcierge.init();
+  var c=document.getElementById('aiWidgetMessages');
+  if(c)c.innerHTML='<div class="ai-widget-msg ai"><div class="bubble">'+AIConcierge.getWelcomeMessage().replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</div></div>';
+  var q=document.getElementById('aiWidgetQs');
+  if(q)q.innerHTML=AIConcierge.getSuggestedQuestions().map(function(qt){return '<span class="ai-widget-q" onclick="document.getElementById(\'aiWidgetInput\').value=\''+String(qt).replace(/'/g,"\\'")+'\';sendWidgetMsg();">'+qt+'</span>';}).join('');
+});
+</script>
+<script>
+// Keyboard support: Escape to close RSVP modal
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    var overlay = document.getElementById('rsvpFormOverlay');
+    if (overlay && overlay.style.display !== 'none') {
+      InviteSys && InviteSys.closeForm && InviteSys.closeForm();
+      var btn = document.getElementById('btnAccept');
+      if (btn) btn.focus();
+    }
+  }
+});
+
 // Generate hero particles
 (function(){
   var c = document.getElementById('heroParticles');
@@ -252,7 +473,69 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }, 1000);
   }
+  setTimeout(function() {
+    if (typeof Guestbook !== 'undefined') {
+      Guestbook.renderGuestbookSection('guestbookContainer');
+    }
+  }, 1500);
 });
+
+// Dynamic SEO update
+function updateSEOTags(data) {
+  if (!data) return;
+  var groom = data.groomName || 'Groom';
+  var bride = data.brideName || 'Bride';
+  var title = 'Wedding Invitation: ' + groom + ' & ' + bride;
+  var desc = 'Join us in celebrating the wedding of ' + groom + ' and ' + bride + '!';
+  if (data.weddingDate) desc += ' on ' + new Date(data.weddingDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  if (data.venue) desc += ' at ' + data.venue;
+  var url = window.location.href;
+  var img = data.coverPhoto || data.heroImage || '';
+
+  function setMeta(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.setAttribute('content', val);
+  }
+  setMeta('ogTitle', title);
+  setMeta('ogDesc', desc);
+  setMeta('ogUrl', url);
+  if (img) setMeta('ogImage', img);
+  setMeta('twTitle', title);
+  setMeta('twDesc', desc);
+  if (img) setMeta('twImage', img);
+
+  var titleEl = document.getElementById('pageTitle');
+  if (titleEl) titleEl.textContent = title;
+
+  var canonical = document.getElementById('canonicalLink');
+  if (canonical) canonical.setAttribute('href', url);
+
+  try {
+    var schema = {
+      "@context": "https://schema.org",
+      "@type": "WeddingEvent",
+      "name": title,
+      "description": desc,
+      "startDate": data.weddingDate || '',
+      "location": { "@type": "Place", "name": data.venue || '', "address": data.address || '' },
+      "url": url,
+      "organizer": { "@type": "Person", "name": groom + ' & ' + bride }
+    };
+    var schemaEl = document.getElementById('schemaJson');
+    if (schemaEl) schemaEl.textContent = JSON.stringify(schema, null, 2);
+  } catch (e) {}
+}
+
+// Patch InviteSys.renderInvitePage to call updateSEOTags
+(function() {
+  var orig = InviteSys && InviteSys.renderInvitePage;
+  if (orig) {
+    InviteSys.renderInvitePage = function(data, weddingId) {
+      orig.call(InviteSys, data, weddingId);
+      updateSEOTags(data);
+    };
+  }
+})();
 
 // Export functions for inline use
 function shareViaNative() { if (typeof InviteSys !== 'undefined') InviteSys.shareViaNative(); }
