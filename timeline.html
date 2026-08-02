@@ -4,17 +4,17 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0">
 <meta name="theme-color" content="#1A1A2E">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.googleapis.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; frame-src 'self' https://www.google.com https://maps.google.com; media-src 'self' blob:;">
-<meta name="description" content="Find all the essential details for our wedding celebration including date, time, venue, and everything you need to know.">
-<meta property="og:title" content="Wedding Details - Date, Time &amp; Venue">
-<meta property="og:description" content="Find all the essential details for our wedding celebration including date, time, venue, and everything you need to know.">
+<meta name="description" content="Follow the timeline of our relationship journey and see the key moments that led us to our wedding day.">
+<meta property="og:title" content="Wedding Timeline - Our Journey Together">
+<meta property="og:description" content="Follow the timeline of our relationship journey and see the key moments that led us to our wedding day.">
 <meta property="og:image" content="https://foreverandalwayswedding.com/icons/icon-512.svg">
-<meta property="og:url" content="https://foreverandalwayswedding.com/wedding-details.html">
+<meta property="og:url" content="https://foreverandalwayswedding.com/timeline.html">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Wedding Details - Date, Time &amp; Venue">
-<meta name="twitter:description" content="Find all the essential details for our wedding celebration including date, time, venue, and everything you need to know.">
-<link rel="canonical" href="https://foreverandalwayswedding.com/wedding-details.html">
-<title id="pageTitle">Wedding Details - Forever &amp; Always</title>
+<meta name="twitter:title" content="Wedding Timeline - Our Journey Together">
+<meta name="twitter:description" content="Follow the timeline of our relationship journey and see the key moments that led us to our wedding day.">
+<link rel="canonical" href="https://foreverandalwayswedding.com/timeline.html">
+<title id="pageTitle">Timeline - Forever &amp; Always</title>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&family=Great+Vibes&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -23,18 +23,28 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/ai-concierge.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/firebase.js"></script>
 <style>
-.details-page{padding:120px 20px 60px;min-height:100vh;background:var(--dark);}
-.details-card{max-width:700px;margin:0 auto;padding:40px;background:rgba(255,255,255,0.03);border:1px solid rgba(212,175,55,0.08);border-radius:var(--radius-lg);text-align:center;}
-.details-card .icon{font-size:2.5rem;color:var(--gold);margin-bottom:15px;}
-.details-card h3{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold);margin-bottom:15px;}
-.details-card p{color:var(--text-light);font-size:1.05rem;margin-bottom:8px;line-height:1.8;}
-.details-card .label{font-family:'Inter',sans-serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:3px;color:var(--gold);margin-bottom:4px;}
-.details-card .value{font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--white);margin-bottom:20px;}
-.details-card .divider-gold{width:60px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:20px auto;}
+.timeline-page{padding:120px 20px 60px;min-height:100vh;background:var(--dark);}
+.timeline-content{max-width:700px;margin:0 auto;position:relative;}
+.timeline-content::before{content:'';position:absolute;top:0;left:50%;width:2px;height:100%;background:linear-gradient(to bottom,transparent,var(--gold),var(--gold-light),var(--gold),transparent);transform:translateX(-50%);}
+.timeline-item{display:flex;align-items:flex-start;margin-bottom:40px;position:relative;}
+.timeline-item:nth-child(even){flex-direction:row-reverse;}
+.timeline-item .tl-time{position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:var(--dark);padding:4px 16px;border-radius:50px;font-family:'Inter',sans-serif;font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;z-index:2;white-space:nowrap;font-weight:600;}
+.timeline-item .tl-content{width:45%;padding:24px;background:rgba(255,255,255,0.03);border:1px solid rgba(212,175,55,0.08);border-radius:var(--radius);margin-top:30px;}
+.timeline-item:nth-child(odd) .tl-content{margin-right:auto;}
+.timeline-item:nth-child(even) .tl-content{margin-left:auto;}
+.tl-content h4{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.1rem;margin-bottom:4px;}
+.tl-content p{color:var(--text-light);font-size:0.95rem;line-height:1.7;}
+@media(max-width:768px){
+  .timeline-content::before{left:20px;}
+  .timeline-item,.timeline-item:nth-child(even){flex-direction:row;padding-left:50px;}
+  .timeline-item .tl-time{left:20px;transform:translateX(0);}
+  .timeline-item .tl-content{width:100%;margin:30px 0 0 0!important;padding:18px;}
+}
 </style>
 </head>
 <body>
@@ -57,12 +67,12 @@
     <div class="sidebar-section-label">Main</div>
     <a href="index.html" class="sidebar-link"><i class="fas fa-home"></i> Home</a>
     <a href="our-story.html" class="sidebar-link"><i class="fas fa-heart"></i> Our Story</a>
-    <a href="wedding-details.html" class="sidebar-link active"><i class="fas fa-info-circle"></i> Wedding Details</a>
+    <a href="wedding-details.html" class="sidebar-link"><i class="fas fa-info-circle"></i> Wedding Details</a>
     <a href="wedding-party.html" class="sidebar-link"><i class="fas fa-user-friends"></i> Wedding Party</a>
     <a href="events.html" class="sidebar-link"><i class="fas fa-calendar-alt"></i> Events</a>
     <div class="sidebar-section-label">Media</div>
     <a href="gallery.html" class="sidebar-link"><i class="fas fa-images"></i> Gallery</a>
-    <a href="timeline.html" class="sidebar-link"><i class="fas fa-clock"></i> Timeline</a>
+    <a href="timeline.html" class="sidebar-link active"><i class="fas fa-clock"></i> Timeline</a>
     <a href="story.html" class="sidebar-link"><i class="fas fa-book-open"></i> Love Story</a>
     <div class="sidebar-section-label">Guests</div>
     <a href="rsvp.html" class="sidebar-link"><i class="fas fa-envelope"></i> RSVP</a>
@@ -89,27 +99,12 @@
 <div class="page-wrapper">
 
 <a href="index.html" class="back-btn" aria-label="Back to Home"><i class="fas fa-arrow-left"></i> Back to Home</a>
-<div class="details-page"><div class="container">
-<div class="section-title"><div class="label">Wedding Guide</div><h2>Wedding <span class="gold">Details</span></h2><div class="divider"></div><p>Everything you need to know</p></div>
-<div class="details-card">
-  <div class="icon"><i class="fas fa-ring"></i></div>
-  <h3 id="detailTitle">Our Wedding Day</h3>
-  <div class="label">Date</div>
-  <div class="value" id="detailDate">Coming Soon</div>
-  <div class="label">Time</div>
-  <div class="value" id="detailTime">To Be Announced</div>
-  <div class="label">Venue</div>
-  <div class="value" id="detailVenue">To Be Announced</div>
-  <div class="divider-gold"></div>
-  <div class="label">Address</div>
-  <div class="value" id="detailAddress">-</div>
-  <div class="divider-gold"></div>
-  <div class="label">Dress Code</div>
-  <div class="value" id="detailDress">Formal / Black Tie</div>
-  <div class="label">Reception</div>
-  <div class="value" id="detailReception">Same Venue</div>
-  <div class="divider-gold"></div>
-  <a href="timeline.html" class="btn-gold" style="margin-top:20px;display:inline-flex;"><i class="fas fa-clock"></i> View Timeline</a>
+<div class="timeline-page"><div class="container">
+<div class="section-title"><div class="label">Wedding Day</div><h2>Event <span class="gold">Timeline</span></h2><div class="divider"></div><p>Our special day schedule</p></div>
+<div class="timeline-content" id="timelineContent">
+  <div class="timeline-item"><div class="tl-time">Ceremony</div><div class="tl-content"><h4>Wedding Ceremony</h4><p>The main event - join us as we exchange vows</p></div></div>
+  <div class="timeline-item"><div class="tl-time"> Reception</div><div class="tl-content"><h4>Reception &amp; Dinner</h4><p>Celebrate with dinner, drinks, and dancing</p></div></div>
+  <div class="timeline-item"><div class="tl-time">Cutting</div><div class="tl-content"><h4>Cake Cutting</h4><p>Join us for the traditional cake cutting ceremony</p></div></div>
 </div>
 </div></div>
 
@@ -177,28 +172,27 @@ function showWidgetTyping(show){document.getElementById('aiWidgetTyping').classL
 
 <script>
 async function load(){
-  var d={};
-  try{d=await fbGetDoc('weddingInfo','main')||{};}catch(e){}
-  if(!d||!d.groomName)d=JSON.parse(localStorage.getItem('weddingData')||'{}');
-  var t;
-  if(d.groomName||d.brideName){t=document.getElementById('detailTitle');if(t)t.textContent=(d.groomName||'Groom')+' & '+(d.brideName||'Bride');}
-  if(d.weddingDate){t=document.getElementById('detailDate');if(t)t.textContent=new Date(d.weddingDate).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});}
-  if(d.weddingTime||d.ceremonyTime){t=document.getElementById('detailTime');if(t)t.textContent=d.weddingTime||d.ceremonyTime;}
-  if(d.venue){t=document.getElementById('detailVenue');if(t)t.textContent=d.venue;}
-  if(d.address){t=document.getElementById('detailAddress');if(t)t.textContent=d.address;}
-  if(d.city||d.state||d.country){t=document.getElementById('detailAddress');if(t)t.textContent+=' ['+[d.city,d.state,d.country].filter(Boolean).join(', ')+']';}
-  if(d.dressCode){t=document.getElementById('detailDress');if(t)t.textContent=d.dressCode;}
-  if(d.receptionVenue){t=document.getElementById('detailReception');if(t)t.textContent=d.receptionVenue;}
-  document.title=(d.groomName||'Groom')+' & '+(d.brideName||'Bride')+' - Wedding Details';
+  try{
+    var events=await fbGetCollection('events')||[];
+    if(events.length&&events.some(function(e){return e.eventName;})){
+      var c=document.getElementById('timelineContent');
+      var icons=['fa-ring','fa-glass-cheers','fa-cake','fa-music','fa-heart','fa-star'];
+      c.innerHTML=events.map(function(e,i){
+        var time=e.eventTime||'TBD';
+        return '<div class="timeline-item"><div class="tl-time"><i class="fas '+(icons[i%icons.length])+'" style="margin-right:4px;"></i> '+escHtml(time)+'</div><div class="tl-content"><h4>'+escHtml(e.eventName)+'</h4>'+(e.eventVenue?'<p><i class="fas fa-map-marker-alt" style="color:var(--gold);"></i> '+escHtml(e.eventVenue)+'</p>':'')+'<p>'+escHtml(e.description||'')+'</p></div></div>';
+      }).join('');
+    }
+  }catch(e){}
 }
+function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 load();
 </script>
-<script src="js/website-title.js"></script>
-<script src="js/global.js"></script>
+<script src="js/notifications.js"></script>
 
+<script src="js/global.js"></script>
+<script src="js/website-title.js"></script>
 <script src="js/floating-panel.js"></script>
 </div><!-- /.page-wrapper -->
-
 <script src="js/auth.js"></script>
 <script src="js/auth-guard.js"></script>
 <script src="js/sidebar.js"></script>

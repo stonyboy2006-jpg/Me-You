@@ -162,6 +162,8 @@ function showWidgetTyping(show){document.getElementById('aiWidgetTyping').classL
 <script>
 async function load(){
   var grid=document.getElementById('partyGrid');
+  var wd={};
+  try{wd=JSON.parse(localStorage.getItem('weddingData')||'{}');}catch(e){}
   try{
     var members=await fbGetCollection('weddingParty')||[];
     if(members.length&&members.some(function(m){return m.name;})){
@@ -172,6 +174,25 @@ async function load(){
       return;
     }
   }catch(e){}
+  var saved=(wd.weddingParty||wd.party||[]).filter(function(m){return m&&m.name;});
+  if(saved.length){
+    grid.innerHTML=saved.map(function(m){
+      var photo=m.photo?('<img class="party-photo" src="'+m.photo+'" alt="'+escHtml(m.name)+'" loading="lazy" decoding="async">'):('<div class="party-photo-placeholder"><i class="fas fa-user"></i></div>');
+      return '<div class="party-card">'+photo+'<h3>'+escHtml(m.name)+'</h3><div class="party-role">'+escHtml(m.role||'Wedding Party')+'</div>'+(m.bio?'<p>'+escHtml(m.bio)+'</p>':'')+'</div>';
+    }).join('');
+    return;
+  }
+  if(wd.groomName||wd.brideName){
+    var couple=[
+      {name:wd.groomName||'Groom',role:'The Groom',bio:wd.groomBio||''},
+      {name:wd.brideName||'Bride',role:'The Bride',bio:wd.brideBio||''}
+    ];
+    grid.innerHTML=couple.map(function(m){
+      var photo=(m.name===wd.groomName&&wd.groomPhoto)?('<img class="party-photo" src="'+wd.groomPhoto+'" alt="'+escHtml(m.name)+'" loading="lazy" decoding="async">'):((m.name===wd.brideName&&wd.bridePhoto)?('<img class="party-photo" src="'+wd.bridePhoto+'" alt="'+escHtml(m.name)+'" loading="lazy" decoding="async">'):('<div class="party-photo-placeholder"><i class="fas fa-user"></i></div>'));
+      return '<div class="party-card">'+photo+'<h3>'+escHtml(m.name)+'</h3><div class="party-role">'+escHtml(m.role)+'</div>'+(m.bio?'<p>'+escHtml(m.bio)+'</p>':'')+'</div>';
+    }).join('');
+    return;
+  }
   grid.innerHTML='<div class="party-empty"><i class="fas fa-users" style="font-size:3rem;color:var(--gold);display:block;margin-bottom:15px;"></i> Wedding party details coming soon...</div>';
 }
 function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
@@ -184,6 +205,7 @@ load();
 <script src="js/floating-panel.js"></script>
 </div><!-- /.page-wrapper -->
 <script src="js/auth.js"></script>
+<script src="js/auth-guard.js"></script>
 <script src="js/sidebar.js"></script>
 </body>
 </html>
