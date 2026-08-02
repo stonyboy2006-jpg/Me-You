@@ -514,7 +514,7 @@ var InvLinkMgr=(function(){
   var L_KEY='weddingInvitationLinks';
   function getLinks(){try{var r=localStorage.getItem(L_KEY);return r?JSON.parse(r):{links:[]};}catch(e){return{links:[]};}}
   function saveLinks(d){localStorage.setItem(L_KEY,JSON.stringify(d));}
-  function getBaseUrl(){return window.location.origin+window.location.pathname.replace(/dashboard\.html.*$/,'')+'invite.html';}
+  function getBaseUrl(){return window.location.origin+'/invite.html';}
   function getLinkUrl(id){return getBaseUrl()+'?id='+id;}
   function renderLinks(){
     var data=getLinks();var links=data.links||[];

@@ -31,7 +31,7 @@ var PLATFORMS=[
 function getWeddingData(){try{return JSON.parse(localStorage.getItem('weddingData')||'{}');}catch(e){return{};}}
 function getBaseUrl(){return window.location.origin+window.location.pathname.replace(/\/[^/]*$/,'/');}
 function getWeddingId(){var id=localStorage.getItem(WEDDING_ID_KEY);if(!id){id='wedding_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);localStorage.setItem(WEDDING_ID_KEY,id);}return id;}
-function getInvitationUrl(){return getBaseUrl()+'invite.html?id='+getWeddingId();}
+function getInvitationUrl(){return getBaseUrl()+'invite/'+getWeddingId();}
 
 function getShareText(){
   var d=getWeddingData();

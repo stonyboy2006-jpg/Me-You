@@ -394,7 +394,7 @@ function fbGenerateWeddingId() {
 }
 
 function fbGetInviteUrl(weddingId) {
-  return window.location.origin + '/invite/' + weddingId;
+  return window.location.origin + '/invite.html?id=' + encodeURIComponent(weddingId);
 }
 
 /* ===== RSVP MANAGEMENT ===== */

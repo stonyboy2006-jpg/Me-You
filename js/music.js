@@ -371,12 +371,14 @@ var M={
     renderMusicPage();
     setupUploadZone();
     setupSettings();
+    initSongRequests();
   },
   filterCategory:function(cat){
     document.querySelectorAll('.music-cat-btn').forEach(function(b){b.classList.toggle('active',b.dataset.cat===cat);});
     var trackList=document.getElementById('musicTrackList');
     if(trackList)renderTrackList(trackList,cat);
   },
+  submitSongRequest:submitSongRequest,
   playTrackById:playTrackById,
   selectTrack:selectTrack,
   togglePlay:togglePlay,
@@ -466,6 +468,98 @@ function initNowPlayingBar(){
   if(volSlider){volSlider.addEventListener('input',function(){setVolume(parseFloat(this.value));});}
   var closeBtn=np.querySelector('.np-close');
   if(closeBtn)closeBtn.addEventListener('click',function(){stopPlayback();np.classList.remove('visible');});
+}
+
+/* ===== SONG REQUESTS ===== */
+var REQ_KEY='weddingSongRequests';
+
+function getSongRequests(){try{var r=localStorage.getItem(REQ_KEY);return r?JSON.parse(r):[];}catch(e){return[];}}
+function saveSongRequests(list){localStorage.setItem(REQ_KEY,JSON.stringify(list));}
+
+function initSongRequests(){
+  var listBox=document.getElementById('songRequestList');
+  if(listBox)renderSongRequests(listBox);
+  if(typeof fbGetCollection==='function'){
+    try{
+      fbGetCollection('songRequests').then(function(remote){
+        if(!Array.isArray(remote)||!remote.length)return;
+        var local=getSongRequests();
+        var ids={};
+        local.forEach(function(r){if(r.id)ids[r.id]=true;});
+        var changed=false;
+        remote.forEach(function(r){
+          var key=r.id||r.pid;
+          if(ids[key]||ids[r.pid])return;
+          local.push({id:key,name:r.name||'Guest',song:r.song||'',artist:r.artist||'',message:r.message||'',createdAt:r.createdAt?new Date(r.createdAt).getTime():Date.now()});
+          if(key)ids[key]=true;changed=true;
+        });
+        if(changed){
+          local.sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+          if(local.length>200)local.length=200;
+          saveSongRequests(local);
+          if(listBox)renderSongRequests(listBox);
+        }
+      }).catch(function(){});
+    }catch(e){}
+  }
+}
+
+function renderSongRequests(box){
+  var reqs=getSongRequests().slice(0,10);
+  if(!reqs.length){box.innerHTML='<p style="color:var(--text-light);font-size:0.85rem;font-style:italic;text-align:center;padding:12px">No song requests yet. Be the first to request a song!</p>';return;}
+  box.innerHTML=reqs.map(function(r){
+    return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:rgba(255,255,255,0.02);border:1px solid rgba(212,175,55,0.08);border-radius:12px;margin-bottom:10px">'+
+      '<div style="width:38px;height:38px;border-radius:50%;background:rgba(212,175,55,0.1);display:flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0"><i class="fas fa-music"></i></div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="color:var(--gold);font-weight:600;font-size:0.9rem;font-family:Poppins,sans-serif">'+esc(r.song)+(r.artist?'<span style="color:var(--text-light);font-weight:400;font-size:0.8rem"> - '+esc(r.artist)+'</span>':'')+'</div>'+
+        '<div style="color:var(--text-light);font-size:0.78rem;margin-top:2px">Requested by '+esc(r.name)+'</div>'+
+        (r.message?'<div style="color:var(--text-light);font-size:0.8rem;line-height:1.5;margin-top:4px">"'+esc(r.message)+'"</div>':'')+
+      '</div>'+
+      '<div style="color:rgba(160,152,136,0.5);font-size:0.7rem;flex-shrink:0">'+timeAgoShort(r.createdAt)+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+function timeAgoShort(ts){
+  if(!ts)return'';
+  var diff=Date.now()-ts;
+  if(diff<60000)return'Just now';
+  if(diff<3600000)return Math.floor(diff/60000)+'m ago';
+  if(diff<86400000)return Math.floor(diff/3600000)+'h ago';
+  return Math.floor(diff/86400000)+'d ago';
+}
+
+function submitSongRequest(){
+  var name=document.getElementById('songReqName');
+  var song=document.getElementById('songReqSong');
+  var artist=document.getElementById('songReqArtist');
+  var message=document.getElementById('songReqMessage');
+  if(!name||!song)return;
+  if(!name.value.trim()){name.style.borderColor='#ef4444';setTimeout(function(){name.style.borderColor='';},2000);return;}
+  if(!song.value.trim()){song.style.borderColor='#ef4444';setTimeout(function(){song.style.borderColor='';},2000);return;}
+  var d=getData();
+  var entry={
+    id:'req_'+Date.now().toString(36)+Math.random().toString(36).substr(2,5),
+    name:name.value.trim(),
+    song:song.value.trim(),
+    artist:artist?artist.value.trim():'',
+    message:message?message.value.trim():'',
+    weddingId:d.weddingId||'',
+    createdAt:Date.now()
+  };
+  var reqs=getSongRequests();
+  reqs.unshift(entry);
+  if(reqs.length>200)reqs.length=200;
+  saveSongRequests(reqs);
+  name.value='';if(song)song.value='';if(artist)artist.value='';if(message)message.value='';
+  var listBox=document.getElementById('songRequestList');
+  if(listBox)renderSongRequests(listBox);
+  showToast('Song request sent! Thank you!','success');
+  if(typeof fbAddDoc==='function'){
+    try{
+      fbAddDoc('songRequests',{type:'request',pid:entry.id,name:entry.name,song:entry.song,artist:entry.artist,message:entry.message,weddingId:entry.weddingId,createdAt:new Date(entry.createdAt).toISOString()}).catch(function(){});
+    }catch(e){}
+  }
 }
 
 document.addEventListener('DOMContentLoaded',function(){

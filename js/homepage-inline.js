@@ -336,16 +336,44 @@ function handleGetStarted(){
     if(ownerProfileIcon)ownerProfileIcon.style.display='none';
   }
 
-  if(localStorage.getItem('_publish_success')==='1'){
+  if(localStorage.getItem('_publish_invite')){
     localStorage.removeItem('_publish_success');
+    var inv={};
+    try{inv=JSON.parse(localStorage.getItem('_publish_invite')||'{}');}catch(e){}
+    localStorage.removeItem('_publish_invite');
+    var inviteUrl=inv.inviteUrl||'';
+    if(!inviteUrl){
+      try{
+        var dd=JSON.parse(localStorage.getItem('weddingData')||'{}');
+        inviteUrl=dd.inviteUrl||(dd.weddingId?window.location.origin+'/invite.html?id='+encodeURIComponent(dd.weddingId):'');
+      }catch(e){}
+    }
     setTimeout(function(){
       var t=document.createElement('div');
       t.className='publish-success-toast';
-      t.style.cssText='position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-20px);z-index:100002;padding:18px 24px;border-radius:14px;background:rgba(20,30,20,0.97);border:1px solid rgba(34,197,94,0.3);backdrop-filter:blur(20px);box-shadow:0 10px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;align-items:center;gap:10px;font-family:Poppins,sans-serif;opacity:0;transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);max-width:90vw;min-width:300px;text-align:center';
-      t.innerHTML='<div style="color:#e8e0d0;font-size:0.95rem;font-weight:600"><i class="fas fa-check-circle" style="color:#22c55e;margin-right:8px"></i>Wedding Published Successfully!</div><div style="color:#a09888;font-size:0.8rem">Your website is now live.</div>';
+      t.style.cssText='position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-20px);z-index:100002;padding:18px 24px;border-radius:14px;background:rgba(20,30,20,0.97);border:1px solid rgba(34,197,94,0.3);backdrop-filter:blur(20px);box-shadow:0 10px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;align-items:center;gap:10px;font-family:Poppins,sans-serif;opacity:0;transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);max-width:90vw;min-width:320px;text-align:center';
+      var namesHtml='';
+      if(inv.groom||inv.bride){
+        namesHtml='<div style="color:#D4AF37;font-size:0.9rem;font-weight:600">'+(inv.groom||'')+(inv.groom&&inv.bride?' &amp; ':'')+(inv.bride||'')+'</div>';
+      }
+      var btnsHtml='';
+      if(inviteUrl){
+        btnsHtml='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">'+
+          '<button onclick="window.open(\''+inviteUrl+'\',\'_blank\',\'noopener\')" style="padding:10px 18px;background:linear-gradient(135deg,#D4AF37,#B8860B);border:none;border-radius:10px;color:#0B0F19;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;font-size:0.82rem"><i class="fas fa-envelope-open-text" style="margin-right:6px"></i>Invite Guests</button>'+
+          '<button onclick="navigator.clipboard.writeText(\''+inviteUrl+'\');if(typeof showNotification===\'function\')showNotification(\'Invitation link copied!\',\'success\')" style="padding:10px 18px;background:rgba(255,255,255,0.06);border:1px solid rgba(212,175,55,0.2);border-radius:10px;color:#D4AF37;font-weight:500;cursor:pointer;font-family:Poppins,sans-serif;font-size:0.82rem"><i class="fas fa-link" style="margin-right:6px"></i>Copy Link</button>'+
+          '<button onclick="this.closest(\'.publish-success-toast\').remove()" style="padding:10px 14px;background:none;border:none;color:#a09888;cursor:pointer;font-family:Poppins,sans-serif;font-size:0.82rem"><i class="fas fa-times"></i></button>'+
+          '</div>';
+      }else{
+        btnsHtml='<button onclick="this.closest(\'.publish-success-toast\').remove()" style="padding:10px 18px;background:linear-gradient(135deg,#D4AF37,#B8860B);border:none;border-radius:10px;color:#0B0F19;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;font-size:0.82rem">OK</button>';
+      }
+      t.innerHTML='<div style="width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center"><i class="fas fa-check-circle" style="font-size:1.5rem;color:#22c55e"></i></div>'+
+        '<div style="color:#e8e0d0;font-size:0.95rem;font-weight:600"><i class="fas fa-check-circle" style="color:#22c55e;margin-right:8px"></i>Wedding Published Successfully!</div>'+
+        namesHtml+
+        '<div style="color:#a09888;font-size:0.8rem;line-height:1.5">Your website is now live. Share the invitation to invite your guests.</div>'+
+        btnsHtml;
       document.body.appendChild(t);
       requestAnimationFrame(function(){requestAnimationFrame(function(){t.style.transform='translateX(-50%) translateY(0)';t.style.opacity='1';});});
-      setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(-20px)';setTimeout(function(){t.remove();},400);},3500);
+      setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(-20px)';setTimeout(function(){t.remove();},400);},15000);
     },500);
   }
 

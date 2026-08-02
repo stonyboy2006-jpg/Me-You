@@ -31,6 +31,10 @@ async function loadFromFirebase() {
       if (weddingData.bride && !weddingData.brideName) weddingData.brideName = weddingData.bride;
       if (weddingData.date && !weddingData.weddingDate) weddingData.weddingDate = weddingData.date;
       if (weddingData.time && !weddingData.weddingTime) weddingData.weddingTime = weddingData.time;
+      if (weddingData.groomImage && !weddingData.groomPhoto) weddingData.groomPhoto = weddingData.groomImage;
+      if (weddingData.brideImage && !weddingData.bridePhoto) weddingData.bridePhoto = weddingData.brideImage;
+      if (!weddingData.groomPhoto && weddingData.groomPhotoUrl) weddingData.groomPhoto = weddingData.groomPhotoUrl;
+      if (!weddingData.bridePhoto && weddingData.bridePhotoUrl) weddingData.bridePhoto = weddingData.bridePhotoUrl;
     }
   }
 

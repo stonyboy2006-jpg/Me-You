@@ -1,6 +1,6 @@
 /**
  * Wedding Invitation Sharing & RSVP System
- * Complete production-ready module
+ * Complete production-ready module with secure public/private separation
  */
 (function () {
   'use strict';
@@ -35,11 +35,11 @@
   }
 
   function getInvitationBaseUrl() {
-    return window.location.origin + '/invite/';
+    return window.location.origin + '/invite.html';
   }
 
   function getInvitationUrl(weddingId) {
-    return getInvitationBaseUrl() + (weddingId || getWeddingId());
+    return getInvitationBaseUrl() + '?id=' + encodeURIComponent(weddingId || getWeddingId());
   }
 
   function getWeddingId() {
@@ -370,7 +370,8 @@
     var total = guests.length;
     var accepted = guests.filter(function (g) { return g.rsvp === 'accepted'; }).length;
     var declined = guests.filter(function (g) { return g.rsvp === 'declined'; }).length;
-    var pending = total - accepted - declined;
+    var maybe = guests.filter(function (g) { return g.rsvp === 'maybe'; }).length;
+    var pending = total - accepted - declined - maybe;
     var expectedGuests = guests.reduce(function (sum, g) { return sum + (parseInt(g.guestCount) || 1); }, 0);
 
     container.innerHTML =
@@ -383,6 +384,7 @@
       '<div class="invite-stat-card"><div class="invite-stat-num">' + total + '</div><div class="invite-stat-label">Total Invitations</div></div>' +
       '<div class="invite-stat-card accepted"><div class="invite-stat-num">' + accepted + '</div><div class="invite-stat-label">Accepted</div></div>' +
       '<div class="invite-stat-card declined"><div class="invite-stat-num">' + declined + '</div><div class="invite-stat-label">Declined</div></div>' +
+      '<div class="invite-stat-card maybe"><div class="invite-stat-num">' + maybe + '</div><div class="invite-stat-label">Maybe</div></div>' +
       '<div class="invite-stat-card pending"><div class="invite-stat-num">' + pending + '</div><div class="invite-stat-label">Pending</div></div>' +
       '</div>' +
       '<div class="invite-link-row">' +
@@ -413,7 +415,7 @@
 
   function previewInvitation() {
     var weddingId = getWeddingId();
-    window.open('invite.html?id=' + weddingId, '_blank');
+    window.open('invite.html?id=' + encodeURIComponent(weddingId), '_blank');
   }
 
   function copyLink() {
@@ -495,6 +497,55 @@
     saveAnalytics();
   }
 
+  function queuePendingRSVP(entry) {
+    try {
+      var pending = JSON.parse(localStorage.getItem('pendingRSVPs') || '[]');
+      if (!pending.some(function (p) { return p.guestName === entry.guestName && p.createdAt === entry.createdAt; })) {
+        pending.push(entry);
+        localStorage.setItem('pendingRSVPs', JSON.stringify(pending));
+      }
+    } catch (e) {}
+  }
+
+  function flushPendingRSVPs() {
+    if (typeof fbAddDoc !== 'function' || !navigator.onLine) return;
+    var pending = [];
+    try { pending = JSON.parse(localStorage.getItem('pendingRSVPs') || '[]'); } catch (e) {}
+    if (!pending.length) return;
+    var remaining = [];
+    var done = 0;
+    pending.forEach(function (entry) {
+      if (typeof fbAddDoc === 'function') {
+        fbAddDoc('guests', entry).then(function (result) {
+          if (result && result.success) {
+            var guests = getData();
+            if (guests.guests) {
+              guests.guests.forEach(function (g) {
+                if (g.guestName === entry.guestName && g.createdAt === entry.createdAt && !g.synced) g.synced = true;
+              });
+              saveData(guests);
+            }
+          } else {
+            remaining.push(entry);
+          }
+          done++;
+          if (done >= pending.length) {
+            localStorage.setItem('pendingRSVPs', JSON.stringify(remaining));
+            if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.ready) {
+              navigator.serviceWorker.ready.then(function (reg) {
+                try { reg.sync.register('sync-rsvp'); } catch (e) {}
+              }).catch(function () {});
+            }
+          }
+        }).catch(function () {
+          remaining.push(entry);
+          done++;
+          if (done >= pending.length) localStorage.setItem('pendingRSVPs', JSON.stringify(remaining));
+        });
+      }
+    });
+  }
+
   function submitRSVP(weddingId, data, callback) {
     if (hasResponded(weddingId)) {
       if (callback) callback({ success: false, error: 'already_responded' });
@@ -503,35 +554,59 @@
 
     getGuestIp(function (ip) {
       var deviceInfo = getDeviceInfo();
+      var country = '';
+      try {
+        if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+          var parts = Intl.DateTimeFormat().resolvedOptions();
+          if (parts.timeZone) {
+            var tzParts = parts.timeZone.split('/');
+            if (tzParts.length > 1) country = tzParts[0];
+          }
+        }
+      } catch (e) {}
+
       var rsvpEntry = {
         weddingId: weddingId,
         guestName: data.name,
-        email: data.email,
+        email: data.email || '',
         phone: data.phone || '',
         guestCount: parseInt(data.guestCount) || 1,
         message: data.message || '',
+        mealPreference: data.mealPreference || '',
         status: data.status,
         acceptedTime: data.status === 'accepted' ? new Date().toISOString() : null,
         declinedTime: data.status === 'declined' ? new Date().toISOString() : null,
+        maybeTime: data.status === 'maybe' ? new Date().toISOString() : null,
         createdAt: new Date().toISOString(),
         deviceInfo: JSON.stringify(deviceInfo),
+        device: deviceInfo.platform || '',
+        country: country,
         ipAddress: ip || '',
-        source: 'invite-page'
+        source: 'invite-page',
+        invitationLink: window.location.href
       };
 
       function saveToFirebase() {
+        if (!navigator.onLine) {
+          queuePendingRSVP(rsvpEntry);
+          saveToLocalStorage(rsvpEntry);
+          return;
+        }
         if (typeof fbAddDoc === 'function') {
           fbAddDoc('guests', rsvpEntry).then(function (result) {
             if (result && result.success) {
               rsvpEntry.id = result.id;
               saveToLocalStorage(rsvpEntry);
             } else {
+              queuePendingRSVP(rsvpEntry);
               saveToLocalStorage(rsvpEntry);
             }
           }).catch(function () {
+            queuePendingRSVP(rsvpEntry);
             saveToLocalStorage(rsvpEntry);
           });
         } else {
+          queuePendingRSVP(rsvpEntry);
           saveToLocalStorage(rsvpEntry);
         }
       }
@@ -540,15 +615,19 @@
         var d = getData();
         if (!d.guests) d.guests = [];
         entry.id = entry.id || 'local_' + Date.now();
+        entry.rsvp = entry.status;
+        entry.name = entry.guestName;
+        entry.rsvpDate = entry.createdAt;
         d.guests.push(entry);
         saveData(d);
         markResponded(weddingId, entry.status);
         if (data.status === 'accepted') {
           trackEvent('rsvp_accepted');
-        } else {
+        } else if (data.status === 'declined') {
           trackEvent('rsvp_declined');
+        } else {
+          trackEvent('rsvp_maybe');
         }
-        sendConfirmationEmail(entry, data.status);
         notifyOwner(entry);
         if (callback) callback({ success: true, id: entry.id, entry: entry });
       }
@@ -579,11 +658,12 @@
   }
 
   function notifyOwner(entry) {
+    var statusLabel = entry.status === 'accepted' ? 'Accepted' : entry.status === 'declined' ? 'Declined' : 'Maybe';
     var notification = {
       id: 'rsvp_' + Date.now(),
-      type: entry.status === 'accepted' ? 'success' : 'info',
-      title: entry.status === 'accepted' ? 'New RSVP: Accepted' : 'New RSVP: Declined',
-      message: entry.guestName + (entry.status === 'accepted' ? ' accepted your invitation!' : ' declined your invitation.') + (entry.status === 'accepted' && parseInt(entry.guestCount) > 1 ? ' (+' + (parseInt(entry.guestCount) - 1) + ' guests)' : ''),
+      type: entry.status === 'accepted' ? 'success' : entry.status === 'declined' ? 'error' : 'info',
+      title: 'New RSVP: ' + statusLabel,
+      message: entry.guestName + ' ' + (entry.status === 'accepted' ? 'accepted your invitation!' : entry.status === 'declined' ? 'declined your invitation.' : 'may attend your wedding.') + (entry.status === 'accepted' && parseInt(entry.guestCount) > 1 ? ' (+' + (parseInt(entry.guestCount) - 1) + ' guests)' : ''),
       time: Date.now(),
       read: false
     };
@@ -599,11 +679,33 @@
         addNotification(notification.title, notification.type, notification.message);
       }
     } catch (e) {}
+
     try {
-      if (typeof DashApp !== 'undefined' && DashApp.loadRSVP) {
-        setTimeout(function () { DashApp.loadRSVP(); }, 500);
+      if (typeof DashApp !== 'undefined') {
+        if (DashApp.loadRSVP) setTimeout(function () { DashApp.loadRSVP(); }, 500);
+        if (DashApp.loadGuests) setTimeout(function () { DashApp.loadGuests(); }, 600);
+        if (DashApp.renderNotifications) setTimeout(function () { DashApp.renderNotifications(); }, 700);
       }
     } catch (e) {}
+
+    var rsvpEvent = new CustomEvent('rsvp_update', { detail: entry });
+    document.dispatchEvent(rsvpEvent);
+  }
+
+  function showInviteNotFound(weddingId) {
+    var loading = document.getElementById('loadingScreen');
+    if (loading) {
+      loading.innerHTML =
+        '<div style="text-align:center;padding:40px 20px;max-width:480px">' +
+        '<div style="font-size:3.5rem;margin-bottom:16px">&#128140;</div>' +
+        '<h2 style="font-family:\'Playfair Display\',serif;font-size:1.8rem;color:#fff;margin-bottom:8px">Invitation Not Found</h2>' +
+        '<p style="color:#A09888;font-size:0.95rem;line-height:1.7;margin-bottom:24px">This invitation could not be found. It may have been removed or the link may be incorrect.</p>' +
+        '<a href="index.html" style="display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:linear-gradient(135deg,#D4AF37,#B8962E);color:#0B0F19;border-radius:50px;font-weight:600;text-decoration:none;font-family:\'Poppins\',sans-serif;font-size:0.85rem;cursor:pointer;border:none"><i class="fas fa-home"></i> Home</a>' +
+        '<p style="color:rgba(255,255,255,0.15);font-size:0.72rem;margin-top:24px"><i class="fas fa-ring"></i> Forever &amp; Always &mdash; Luxury Wedding Platform</p>' +
+        '</div>';
+      loading.style.background = '#0B0F19';
+    }
+    trackEvent('invite_not_found');
   }
 
   function initInvitePage() {
@@ -632,11 +734,18 @@
     }
 
     loadWeddingData(weddingId, function (data) {
-      if (!data) {
-        document.getElementById('loadingStatus').textContent = 'Invitation not found';
-        return;
+      try {
+        if (!data || !data.groomName) {
+          showInviteNotFound(weddingId);
+          return;
+        }
+        renderInvitePage(data, weddingId);
+        if (window.AIConcierge) {
+          window.AIConcierge.weddingData = data;
+        }
+      } catch (e) {
+        showInviteNotFound(weddingId);
       }
-      renderInvitePage(data, weddingId);
     });
   }
 
@@ -647,11 +756,15 @@
       return;
     }
     if (typeof fbGetDoc === 'function') {
-      fbGetDoc('weddingInfo', 'main').then(function (doc) {
-        if (doc) {
+      fbGetDoc('weddingInfo', weddingId).then(function (doc) {
+        if (doc && doc.groomName) {
           callback(doc);
         } else {
-          callback(d);
+          fbGetDoc('weddingInfo', 'main').then(function (main) {
+            callback(main || d);
+          }).catch(function () {
+            callback(d);
+          });
         }
       }).catch(function () {
         callback(d);
@@ -754,6 +867,15 @@
       }
     }
 
+    // Render Timeline section
+    renderTimelineSection(data);
+
+    // Render Videos section
+    renderVideosSection(data);
+
+    // Render Gift Registry section
+    renderGiftRegistrySection(data);
+
     startCountdown(date);
     initMusicPlayer(musicUrl);
     checkAlreadyResponded(weddingId);
@@ -841,6 +963,7 @@
   function renderRSVPModal(data, weddingId) {
     if (hasResponded(weddingId)) return;
     document.getElementById('btnAccept').addEventListener('click', function () { showRSVPForm('accepted'); });
+    document.getElementById('btnMaybe').addEventListener('click', function () { showRSVPForm('maybe'); });
     document.getElementById('btnDecline').addEventListener('click', function () { showRSVPForm('declined'); });
     document.getElementById('rsvpCancelBtn').addEventListener('click', hideRSVPForm);
     document.getElementById('rsvpFormOverlay').addEventListener('click', function (e) {
@@ -856,8 +979,13 @@
     document.getElementById('rsvpStatus').value = status;
     document.getElementById('rsvpFormOverlay').classList.add('active');
     document.getElementById('rsvpFormContainer').classList.add('active');
-    document.getElementById('rsvpFormTitle').textContent = status === 'accepted' ? 'Accept Invitation' : 'Decline Invitation';
-    document.getElementById('rsvpFormTitle').style.color = status === 'accepted' ? 'var(--success)' : 'var(--error)';
+    var title = 'Respond to Invitation';
+    var color = 'var(--gold)';
+    if (status === 'accepted') { title = 'Accept Invitation'; color = 'var(--success)'; }
+    else if (status === 'maybe') { title = 'Maybe Attending'; color = 'var(--warning)'; }
+    else { title = 'Decline Invitation'; color = 'var(--error)'; }
+    document.getElementById('rsvpFormTitle').textContent = title;
+    document.getElementById('rsvpFormTitle').style.color = color;
   }
 
   function hideRSVPForm() {
@@ -872,10 +1000,11 @@
     var guestCount = parseInt(document.getElementById('rsvpGuestCount').value) || 1;
     var message = document.getElementById('rsvpMessage').value.trim();
     var status = document.getElementById('rsvpStatus').value;
+    var mealPref = document.getElementById('rsvpMealPreference') ? document.getElementById('rsvpMealPreference').value : '';
 
     var valid = true;
     if (!name) { showFieldError('rsvpName'); valid = false; }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('rsvpEmail'); valid = false; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFieldError('rsvpEmail'); valid = false; }
     if (guestCount < 1 || guestCount > 20) { showFieldError('rsvpGuestCount'); valid = false; }
     if (!status) { valid = false; }
     if (!valid) return;
@@ -884,7 +1013,7 @@
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
-    submitRSVP(weddingId, { name: name, email: email, phone: phone, guestCount: guestCount, message: message, status: status }, function (result) {
+    submitRSVP(weddingId, { name: name, email: email, phone: phone, guestCount: guestCount, message: message, status: status, mealPreference: mealPref }, function (result) {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit RSVP';
       hideRSVPForm();
@@ -911,14 +1040,15 @@
   function showThankYou(status, name) {
     var rsvpSection = document.getElementById('rsvpSection');
     if (!rsvpSection) return;
-    var message = status === 'accepted' ?
-      'Thank you for accepting our wedding invitation, ' + escapeHtml(name) + '!' :
-      'Thank you for letting us know, ' + escapeHtml(name) + '.';
+    var icon = 'fa-heart';
+    var statusClass = 'accepted';
+    if (status === 'declined') { icon = 'fa-envelope'; statusClass = 'declined'; }
+    else if (status === 'maybe') { icon = 'fa-clock'; statusClass = 'maybe'; }
     rsvpSection.innerHTML =
-      '<div class="thank-you-message ' + (status === 'accepted' ? 'accepted' : 'declined') + '">' +
-      '<div class="thank-you-icon"><i class="fas ' + (status === 'accepted' ? 'fa-heart' : 'fa-envelope') + '"></i></div>' +
-      '<h3>' + escapeHtml(message) + '</h3>' +
-      '<p>' + (status === 'accepted' ? 'We look forward to celebrating with you!' : 'You will be in our thoughts on our special day.') + '</p>' +
+      '<div class="thank-you-message ' + statusClass + '">' +
+      '<div class="thank-you-icon"><i class="fas ' + icon + '"></i></div>' +
+      '<h3>Thank you for your response.</h3>' +
+      '<p>' + (status === 'accepted' ? 'We look forward to celebrating with you!' : status === 'maybe' ? 'We hope you can make it!' : 'You will be in our thoughts on our special day.') + '</p>' +
       '</div>';
     var btns = document.getElementById('rsvpButtons');
     if (btns) btns.style.display = 'none';
@@ -964,6 +1094,109 @@
     renderQRCode('inviteQRContainer', weddingId);
   }
 
+  function renderTimelineSection(data) {
+    var container = document.getElementById('invTimeline');
+    var section = document.getElementById('timelineSection');
+    if (!container || !section) return;
+    var timeline = data.timeline || [];
+    if (!timeline.length) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    container.innerHTML = timeline.map(function (ev, i) {
+      return '<div class="timeline-item">' +
+        '<div class="timeline-time">' + (ev.time || '') + '</div>' +
+        '<div class="timeline-content">' +
+        '<h4>' + (ev.title || '') + '</h4>' +
+        (ev.description ? '<p>' + ev.description + '</p>' : '') +
+        (ev.venue ? '<p class="timeline-venue"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:6px"></i>' + ev.venue + '</p>' : '') +
+        '</div></div>';
+    }).join('');
+  }
+
+  function renderVideosSection(data) {
+    var container = document.getElementById('invVideos');
+    var section = document.getElementById('videosSection');
+    if (!container || !section) return;
+    var videos = data.videos || [];
+    if (!videos.length) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    container.innerHTML = videos.map(function (v) {
+      var url = v.url || v;
+      var title = v.title || 'Wedding Video';
+      var isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+      var isVimeo = url.includes('vimeo.com');
+      var embedUrl = '';
+      if (isYoutube) {
+        var videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+        if (videoId) embedUrl = 'https://www.youtube.com/embed/' + videoId[1];
+      } else if (isVimeo) {
+        var videoId = url.match(/vimeo\.com\/(\d+)/);
+        if (videoId) embedUrl = 'https://player.vimeo.com/video/' + videoId[1];
+      } else {
+        embedUrl = url;
+      }
+      return '<div class="video-item">' +
+        '<h4>' + title + '</h4>' +
+        (embedUrl ? '<iframe src="' + embedUrl + '" allowfullscreen loading="lazy"></iframe>' : '<div style="padding:60px;text-align:center;color:var(--text-light)">Video format not supported</div>') +
+        '</div>';
+    }).join('');
+  }
+
+  function renderGiftRegistrySection(data) {
+    var container = document.getElementById('invGiftRegistry');
+    var section = document.getElementById('giftRegistrySection');
+    if (!container || !section) return;
+    var hasGifts = data.bankName || data.bankNumber || data.registryLink || data.paypal || data.cashapp || data.giftInfo || data.giftRegistry;
+    if (!hasGifts) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    var html = '';
+    if (data.bankName && data.bankNumber) {
+      html += '<div class="gift-card">' +
+        '<div class="gift-icon"><i class="fas fa-university"></i></div>' +
+        '<h4>Bank Transfer</h4>' +
+        '<p>' + data.bankName + '</p>' +
+        '<div class="bank-detail">Account: ' + data.bankNumber + '</div>' +
+        '</div>';
+    }
+    if (data.registryLink) {
+      html += '<div class="gift-card">' +
+        '<div class="gift-icon"><i class="fas fa-gift"></i></div>' +
+        '<h4>Gift Registry</h4>' +
+        '<a href="' + data.registryLink + '" target="_blank" class="gift-link">View Registry</a>' +
+        '</div>';
+    }
+    if (data.paypal) {
+      html += '<div class="gift-card">' +
+        '<div class="gift-icon"><i class="fab fa-paypal"></i></div>' +
+        '<h4>PayPal</h4>' +
+        '<a href="' + data.paypal + '" target="_blank" class="gift-link">Send Gift</a>' +
+        '</div>';
+    }
+    if (data.cashapp) {
+      html += '<div class="gift-card">' +
+        '<div class="gift-icon"><i class="fas fa-money-bill"></i></div>' +
+        '<h4>CashApp</h4>' +
+        '<a href="' + data.cashapp + '" target="_blank" class="gift-link">Send Gift</a>' +
+        '</div>';
+    }
+    if (data.giftInfo) {
+      html += '<div class="gift-card">' +
+        '<div class="gift-icon"><i class="fas fa-heart"></i></div>' +
+        '<h4>Gift Information</h4>' +
+        '<p>' + data.giftInfo + '</p>' +
+        '</div>';
+    }
+    container.innerHTML = html || '<p style="color:var(--text-light);text-align:center">Your presence is the greatest gift.</p>';
+  }
+
   function downloadICS(encodedContent) {
     var content = decodeURIComponent(encodedContent);
     var blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
@@ -981,9 +1214,10 @@
     var total = guests.length;
     var accepted = guests.filter(function (g) { return g.status === 'accepted' || g.rsvp === 'accepted'; }).length;
     var declined = guests.filter(function (g) { return g.status === 'declined' || g.rsvp === 'declined'; }).length;
-    var pending = total - accepted - declined;
+    var maybe = guests.filter(function (g) { return g.status === 'maybe' || g.rsvp === 'maybe'; }).length;
+    var pending = total - accepted - declined - maybe;
     var expectedGuests = guests.reduce(function (sum, g) { return sum + (parseInt(g.guestCount) || 1); }, 0);
-    return { total: total, accepted: accepted, declined: declined, pending: pending, expectedGuests: expectedGuests };
+    return { total: total, accepted: accepted, declined: declined, maybe: maybe, pending: pending, expectedGuests: expectedGuests };
   }
 
   function exportData(format) {
@@ -1060,5 +1294,20 @@
 
   // Compatibility wrapper for existing code
   window.InviteSys = W;
+
+  // Service worker registration (covers invite/public pages too)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+
+  // Retry offline RSVPs when back online
+  document.addEventListener('DOMContentLoaded', function () {
+    flushPendingRSVPs();
+  });
+  window.addEventListener('online', function () {
+    flushPendingRSVPs();
+  });
 
 })();

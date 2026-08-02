@@ -1,241 +1,313 @@
-/**
- * Reminder Center Module
- * Client-side wedding countdown reminders with browser notifications
- */
-(function(){
+(function () {
   'use strict';
-  var W=window.__WEDDING_REMINDERS=window.__WEDDING_REMINDERS||{};
-  if(W.initialized)return;
-  W.initialized=true;
+  if (window.__WEDDING_REMINDERS) return;
+  window.__WEDDING_REMINDERS = true;
 
-  var STORAGE_KEY='weddingReminders';
-  var SCHEDULE_KEY='weddingReminderSchedule';
+  var REMINDERS_KEY = 'weddingReminders';
+  var DB_KEY = 'weddingData';
 
-  function getReminders(){
-    try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}catch(e){return[];}
-  }
-  function saveReminders(r){localStorage.setItem(STORAGE_KEY,JSON.stringify(r));}
-  function getSchedule(){
-    try{return JSON.parse(localStorage.getItem(SCHEDULE_KEY)||'{}');}catch(e){return{};}
-  }
-  function saveSchedule(s){localStorage.setItem(SCHEDULE_KEY,JSON.stringify(s));}
-  function getWeddingDate(){
-    try{var d=JSON.parse(localStorage.getItem('weddingData')||'{}');return d.weddingDate?new Date(d.weddingDate):null;}catch(e){return null;}
+  function getData() {
+    try { return JSON.parse(localStorage.getItem(DB_KEY) || '{}'); } catch (e) { return {}; }
   }
 
-  W.getAll=function(){return getReminders();};
+  function getReminders() {
+    try { return JSON.parse(localStorage.getItem(REMINDERS_KEY) || '[]'); } catch (e) { return []; }
+  }
 
-  W.add=function(reminder){
-    var reminders=getReminders();
-    var entry={
-      id:'rem_'+Date.now()+'_'+Math.random().toString(36).substr(2,6),
-      title:reminder.title||'Untitled Reminder',
-      description:reminder.description||'',
-      dueDate:reminder.dueDate?new Date(reminder.dueDate).toISOString():null,
-      category:reminder.category||'general',
-      priority:reminder.priority||'medium',
-      completed:false,
-      notified:false,
-      createdAt:new Date().toISOString()
-    };
-    reminders.push(entry);
-    saveReminders(reminders);
-    if(window.AuditLog)window.AuditLog.record('reminder_added','Reminder: '+entry.title,'reminders');
-    return entry;
-  };
+  function saveReminders(r) {
+    localStorage.setItem(REMINDERS_KEY, JSON.stringify(r));
+  }
 
-  W.update=function(id,updates){
-    var reminders=getReminders();
-    var idx=reminders.findIndex(function(r){return r.id===id;});
-    if(idx===-1)return null;
-    Object.keys(updates).forEach(function(k){reminders[idx][k]=updates[k];});
-    saveReminders(reminders);
-    return reminders[idx];
-  };
+  function genId() {
+    return 'rem_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+  }
 
-  W.complete=function(id){
-    return W.update(id,{completed:true,completedAt:new Date().toISOString()});
-  };
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
 
-  W.delete=function(id){
-    var reminders=getReminders().filter(function(r){return r.id!==id;});
-    saveReminders(reminders);
-    return true;
-  };
+  function timeAgo(ts) {
+    if (!ts) return '';
+    var diff = Date.now() - ts;
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    return Math.floor(diff / 86400000) + 'd ago';
+  }
 
-  W.getUpcoming=function(days){
-    var reminders=getReminders();
-    var cutoff=new Date();
-    cutoff.setDate(cutoff.getDate()+(days||30));
-    return reminders.filter(function(r){
-      return!r.completed&&r.dueDate&&new Date(r.dueDate)<=cutoff;
-    }).sort(function(a,b){return new Date(a.dueDate)-new Date(b.dueDate);});
-  };
+  var Reminders = {
+    create: function (data) {
+      var reminder = {
+        id: genId(),
+        title: data.title || '',
+        message: data.message || '',
+        type: data.type || 'custom',
+        triggerAt: data.triggerAt || null,
+        sentTo: data.sentTo || 'all',
+        createdAt: Date.now(),
+        sent: false
+      };
+      var reminders = getReminders();
+      reminders.unshift(reminder);
+      saveReminders(reminders);
+      return reminder;
+    },
 
-  W.getOverdue=function(){
-    var now=new Date();
-    return getReminders().filter(function(r){
-      return!r.completed&&r.dueDate&&new Date(r.dueDate)<now;
-    });
-  };
+    createAutoReminders: function () {
+      var d = getData();
+      if (!d.weddingDate) return [];
 
-  W.getStats=function(){
-    var reminders=getReminders();
-    return{
-      total:reminders.length,
-      completed:reminders.filter(function(r){return r.completed;}).length,
-      pending:reminders.filter(function(r){return!r.completed;}).length,
-      overdue:W.getOverdue().length,
-      byCategory:reminders.reduce(function(acc,r){acc[r.category]=(acc[r.category]||0)+1;return acc;},{})
-    };
-  };
+      var weddingDate = new Date(d.weddingDate + 'T' + (d.weddingTime || '12:00'));
+      var now = Date.now();
+      var diff = weddingDate.getTime() - now;
+      if (diff <= 0) return [];
 
-  W.generateFromTemplate=function(){
-    var templates=[
-      {title:'Finalize Guest List',days:90,category:'planning',priority:'high'},
-      {title:'Book Venue',days:85,category:'booking',priority:'high'},
-      {title:'Send Save the Dates',days:80,category:'invitations',priority:'high'},
-      {title:'Book Photographer',days:75,category:'vendors',priority:'high'},
-      {title:'Book Caterer',days:70,category:'vendors',priority:'high'},
-      {title:'Choose Wedding Party',days:65,category:'planning',priority:'medium'},
-      {title:'Book Florist',days:60,category:'vendors',priority:'medium'},
-      {title:'Send Invitations',days:60,category:'invitations',priority:'high'},
-      {title:'Order Wedding Cake',days:45,category:'vendors',priority:'medium'},
-      {title:'Final Dress Fitting',days:30,category:'attire',priority:'high'},
-      {title:'Finalize Menu',days:30,category:'catering',priority:'high'},
-      {title:'Confirm RSVP Count',days:21,category:'invitations',priority:'high'},
-      {title:'Create Seating Chart',days:14,category:'planning',priority:'medium'},
-      {title:'Confirm Vendor Details',days:14,category:'vendors',priority:'high'},
-      {title:'Write Vows',days:10,category:'personal',priority:'high'},
-      {title:'Pack Honeymoon Bags',days:7,category:'personal',priority:'medium'},
-      {title:'Rehearsal Dinner',days:1,category:'event',priority:'high'},
-      {title:'Wedding Day!',days:0,category:'event',priority:'high'}
-    ];
-    var weddingDate=getWeddingDate();
-    if(!weddingDate)return[];
-    var added=[];
-    templates.forEach(function(t){
-      var due=new Date(weddingDate);
-      due.setDate(due.getDate()-t.days);
-      if(due>new Date()){
-        var entry=W.add({title:t.title,dueDate:due.toISOString(),category:t.category,priority:t.priority,description:'Auto-generated from template'});
-        added.push(entry);
+      var reminders = [];
+      var groom = d.groomName || 'Groom';
+      var bride = d.brideName || 'Bride';
+      var venue = d.venue || 'the venue';
+
+      var sevenDays = 7 * 24 * 60 * 60 * 1000;
+      var oneDay = 24 * 60 * 60 * 1000;
+      var threeHours = 3 * 60 * 60 * 1000;
+
+      if (diff > sevenDays) {
+        reminders.push({
+          id: genId(),
+          title: '7 Days to Go!',
+          message: 'The wedding of ' + groom + ' & ' + bride + ' is in 7 days at ' + venue + '. Get ready to celebrate!',
+          type: '7_days',
+          triggerAt: now + (diff - sevenDays),
+          createdAt: Date.now(),
+          sent: false
+        });
       }
-    });
-    return added;
-  };
 
-  W.requestNotificationPermission=function(){
-    if(!('Notification' in window))return false;
-    if(Notification.permission==='granted')return true;
-    Notification.requestPermission();
-    return Notification.permission==='granted';
-  };
+      if (diff > oneDay) {
+        reminders.push({
+          id: genId(),
+          title: 'Wedding Tomorrow!',
+          message: 'The wedding of ' + groom + ' & ' + bride + ' is TOMORROW at ' + venue + '! We can\'t wait to see you there!',
+          type: 'tomorrow',
+          triggerAt: now + (diff - oneDay),
+          createdAt: Date.now(),
+          sent: false
+        });
+      }
 
-  W.sendNotification=function(title,body,tag){
-    if(!('Notification' in window)||Notification.permission!=='granted')return;
-    var n=new Notification(title,{body:body,icon:'icons/icon-192.svg',tag:tag||'wedding-reminder',requireInteraction:true});
-    n.onclick=function(){window.focus();n.close();};
-  };
+      if (diff > threeHours) {
+        reminders.push({
+          id: genId(),
+          title: 'Wedding in 3 Hours!',
+          message: 'The wedding of ' + groom + ' & ' + bride + ' starts in 3 hours at ' + venue + '! See you soon!',
+          type: '3_hours',
+          triggerAt: now + (diff - threeHours),
+          createdAt: Date.now(),
+          sent: false
+        });
+      }
 
-  W.checkDueReminders=function(){
-    var now=new Date();
-    var reminders=getReminders();
-    var due=[];
-    reminders.forEach(function(r){
-      if(!r.completed&&!r.notified&&r.dueDate){
-        var dueDate=new Date(r.dueDate);
-        var diff=dueDate-now;
-        if(diff<=0||diff<60*60*1000){
-          due.push(r);
-          r.notified=true;
+      var existing = getReminders();
+      var existingTypes = {};
+      existing.forEach(function (r) { existingTypes[r.type] = true; });
+
+      reminders = reminders.filter(function (r) { return !existingTypes[r.type]; });
+      if (reminders.length > 0) {
+        var all = existing.concat(reminders);
+        saveReminders(all);
+      }
+
+      return reminders;
+    },
+
+    sendReminder: function (id) {
+      var reminders = getReminders();
+      var found = false;
+      reminders.forEach(function (r) {
+        if (r.id === id && !r.sent) {
+          r.sent = true;
+          r.sentAt = Date.now();
+          found = true;
+          try {
+            var notifs = JSON.parse(localStorage.getItem('weddingNotifications') || '[]');
+            notifs.unshift({
+              id: 'notif_' + Date.now().toString(36),
+              type: 'reminder',
+              title: r.title,
+              message: r.message,
+              time: Date.now(),
+              read: false
+            });
+            if (notifs.length > 50) notifs.length = 50;
+            localStorage.setItem('weddingNotifications', JSON.stringify(notifs));
+            if (typeof updateNotifBadge === 'function') updateNotifBadge();
+          } catch (e) {}
         }
+      });
+      if (found) saveReminders(reminders);
+      return found;
+    },
+
+    sendNow: function (id) {
+      var reminders = getReminders();
+      var found = false;
+      reminders.forEach(function (r) {
+        if (r.id === id) {
+          r.sent = true;
+          r.sentAt = Date.now();
+          found = true;
+          try {
+            var notifs = JSON.parse(localStorage.getItem('weddingNotifications') || '[]');
+            notifs.unshift({
+              id: 'notif_' + Date.now().toString(36),
+              type: 'reminder',
+              title: r.title,
+              message: r.message,
+              time: Date.now(),
+              read: false
+            });
+            if (notifs.length > 50) notifs.length = 50;
+            localStorage.setItem('weddingNotifications', JSON.stringify(notifs));
+            if (typeof updateNotifBadge === 'function') updateNotifBadge();
+          } catch (e) {}
+          if (typeof showNotification === 'function') {
+            showNotification('Reminder sent: ' + r.title, 'success');
+          }
+        }
+      });
+      if (found) saveReminders(reminders);
+      return found;
+    },
+
+    deleteReminder: function (id) {
+      var reminders = getReminders().filter(function (r) { return r.id !== id; });
+      saveReminders(reminders);
+    },
+
+    getReminders: function () {
+      return getReminders();
+    },
+
+    getPendingReminders: function () {
+      return getReminders().filter(function (r) { return !r.sent; });
+    },
+
+    getSentReminders: function () {
+      return getReminders().filter(function (r) { return r.sent; });
+    },
+
+    checkAndSend: function () {
+      var now = Date.now();
+      var reminders = getReminders();
+      var updated = false;
+      reminders.forEach(function (r) {
+        if (!r.sent && r.triggerAt && now >= r.triggerAt) {
+          r.sent = true;
+          r.sentAt = now;
+          updated = true;
+          try {
+            var notifs = JSON.parse(localStorage.getItem('weddingNotifications') || '[]');
+            notifs.unshift({
+              id: 'notif_' + Date.now().toString(36),
+              type: 'reminder',
+              title: r.title,
+              message: r.message,
+              time: Date.now(),
+              read: false
+            });
+            if (notifs.length > 50) notifs.length = 50;
+            localStorage.setItem('weddingNotifications', JSON.stringify(notifs));
+            if (typeof updateNotifBadge === 'function') updateNotifBadge();
+          } catch (e) {}
+        }
+      });
+      if (updated) saveReminders(reminders);
+    },
+
+    renderRemindersSection: function (containerId) {
+      var container = document.getElementById(containerId);
+      if (!container) return;
+
+      this.createAutoReminders();
+      var all = this.getReminders();
+      var pending = all.filter(function (r) { return !r.sent; });
+      var sent = all.filter(function (r) { return r.sent; });
+
+      var html = '';
+      html += '<div class="owner-reminders-section">';
+      html += '<div class="owner-section-header">';
+      html += '<h3><i class="fas fa-bell"></i> Wedding Reminders</h3>';
+      html += '</div>';
+
+      html += '<div class="owner-reminder-actions" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">';
+      html += '<button onclick="Reminders.createQuickReminder(\'7_days\')" class="owner-btn owner-btn-sm owner-btn-outline"><i class="fas fa-calendar-week"></i> 7 Days Before</button>';
+      html += '<button onclick="Reminders.createQuickReminder(\'tomorrow\')" class="owner-btn owner-btn-sm owner-btn-outline"><i class="fas fa-calendar-day"></i> Day Before</button>';
+      html += '<button onclick="Reminders.createQuickReminder(\'3_hours\')" class="owner-btn owner-btn-sm owner-btn-outline"><i class="fas fa-clock"></i> 3 Hours Before</button>';
+      html += '</div>';
+
+      if (pending.length > 0) {
+        html += '<h4 style="color:var(--gold);margin-bottom:10px">Pending Reminders (' + pending.length + ')</h4>';
+        pending.forEach(function (r) {
+          html += '<div class="owner-notif-item">';
+          html += '<div class="owner-notif-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b"><i class="fas fa-clock"></i></div>';
+          html += '<div class="owner-notif-content"><strong>' + esc(r.title) + '</strong><span>' + esc(r.message) + '</span></div>';
+          html += '<button onclick="Reminders.sendNow(\'' + r.id + '\');Reminders.renderRemindersSection(\'' + containerId + '\')" class="owner-btn owner-btn-sm" style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3)"><i class="fas fa-paper-plane"></i> Send Now</button>';
+          html += '</div>';
+        });
+      } else {
+        html += '<p style="color:var(--text-light);text-align:center;padding:16px;font-style:italic">No pending reminders. Create one using the buttons above.</p>';
       }
-    });
-    saveReminders(reminders);
-    due.forEach(function(r){
-      W.sendNotification('Wedding Reminder',r.title,r.id);
-    });
-    return due;
+
+      if (sent.length > 0) {
+        html += '<h4 style="color:var(--text-light);margin:16px 0 10px">Sent Reminders (' + sent.length + ')</h4>';
+        sent.slice(0, 5).forEach(function (r) {
+          html += '<div class="owner-notif-item" style="opacity:0.6">';
+          html += '<div class="owner-notif-icon" style="background:rgba(34,197,94,0.1);color:#22c55e"><i class="fas fa-check-circle"></i></div>';
+          html += '<div class="owner-notif-content"><strong>' + esc(r.title) + '</strong><span>' + esc(r.message) + '</span><span class="owner-notif-time">Sent ' + timeAgo(r.sentAt) + '</span></div>';
+          html += '</div>';
+        });
+      }
+
+      html += '</div>';
+      container.innerHTML = html;
+    },
+
+    createQuickReminder: function (type) {
+      var d = getData();
+      if (!d.weddingDate) {
+        if (typeof showNotification === 'function') showNotification('Please set a wedding date first.', 'error');
+        return;
+      }
+      var groom = d.groomName || 'Groom';
+      var bride = d.brideName || 'Bride';
+      var venue = d.venue || 'the venue';
+      var title = '';
+      var message = '';
+
+      switch (type) {
+        case '7_days':
+          title = '7 Days to Go!';
+          message = 'The wedding of ' + groom + ' & ' + bride + ' is in 7 days at ' + venue + '. Get ready to celebrate!';
+          break;
+        case 'tomorrow':
+          title = 'Wedding Tomorrow!';
+          message = 'The wedding of ' + groom + ' & ' + bride + ' is TOMORROW at ' + venue + '! We can\'t wait to see you there!';
+          break;
+        case '3_hours':
+          title = 'Wedding in 3 Hours!';
+          message = 'The wedding of ' + groom + ' & ' + bride + ' starts in 3 hours at ' + venue + '! See you soon!';
+          break;
+      }
+
+      this.create({ title: title, message: message, type: type });
+      if (typeof showNotification === 'function') showNotification(title + ' reminder created!', 'success');
+      this.renderRemindersSection('ownerRemindersContainer');
+    }
   };
 
-  W.renderRemindersPanel=function(containerId){
-    var el=document.getElementById(containerId);if(!el)return;
-    var reminders=getReminders();
-    var stats=W.getStats();
-    var overdue=W.getOverdue();
-    el.innerHTML='\n'+
-      '<div class="glass-card" style="padding:24px;border-radius:16px;border:1px solid rgba(212,175,55,0.08)">\n'+
-      '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">\n'+
-      '    <h3 style="font-family:Playfair Display,serif;color:#D4AF37"><i class="fas fa-bell" style="margin-right:8px"></i>Reminders</h3>\n'+
-      '    <div style="display:flex;gap:8px">\n'+
-      '      <button onclick="WeddingReminders.requestNotificationPermission()" style="padding:6px 12px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.15);border-radius:8px;color:#D4AF37;cursor:pointer;font-size:0.78rem"><i class="fas fa-bell"></i></button>\n'+
-      '      <button onclick="WeddingReminders.showAddForm()" style="padding:6px 12px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.15);border-radius:8px;color:#D4AF37;cursor:pointer;font-size:0.78rem"><i class="fas fa-plus"></i></button>\n'+
-      '    </div>\n'+
-      '  </div>\n'+
-      '  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">\n'+
-      '    <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.02);border-radius:10px"><div style="font-size:1.2rem;color:#D4AF37;font-weight:600">'+stats.total+'</div><div style="font-size:0.7rem;color:#A09888">Total</div></div>\n'+
-      '    <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.02);border-radius:10px"><div style="font-size:1.2rem;color:#4CAF50;font-weight:600">'+stats.completed+'</div><div style="font-size:0.7rem;color:#A09888">Done</div></div>\n'+
-      '    <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.02);border-radius:10px"><div style="font-size:1.2rem;color:#FF9800;font-weight:600">'+stats.pending+'</div><div style="font-size:0.7rem;color:#A09888">Pending</div></div>\n'+
-      '    <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.02);border-radius:10px"><div style="font-size:1.2rem;color:#F44336;font-weight:600">'+stats.overdue+'</div><div style="font-size:0.7rem;color:#A09888">Overdue</div></div>\n'+
-      '  </div>\n'+
-      '  <div id="reminderList">'+renderReminderItems(reminders)+'</div>\n'+
-      '  <div id="reminderAddForm" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.05)">\n'+
-      '    <input id="remTitle" placeholder="Reminder title" style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(212,175,55,0.08);border-radius:10px;color:#E8E0D0;font-size:0.85rem;margin-bottom:8px">\n'+
-      '    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">\n'+
-      '      <input id="remDate" type="date" style="padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(212,175,55,0.08);border-radius:10px;color:#E8E0D0;font-size:0.85rem">\n'+
-      '      <select id="remPriority" style="padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(212,175,55,0.08);border-radius:10px;color:#E8E0D0;font-size:0.85rem"><option value="low">Low Priority</option><option value="medium" selected>Medium</option><option value="high">High Priority</option></select>\n'+
-      '    </div>\n'+
-      '    <div style="display:flex;gap:8px">\n'+
-      '      <button onclick="WeddingReminders.saveNew()" style="flex:1;padding:10px;background:linear-gradient(135deg,#D4AF37,#B8860B);border:none;border-radius:10px;color:#0B0F19;font-weight:600;cursor:pointer;font-size:0.85rem">Save</button>\n'+
-      '      <button onclick="WeddingReminders.hideAddForm()" style="padding:10px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#A09888;cursor:pointer">Cancel</button>\n'+
-      '    </div>\n'+
-      '  </div>\n'+
-      '</div>\n';
-    setInterval(function(){W.checkDueReminders();},60000);
-  };
+  window.Reminders = Reminders;
 
-  function renderReminderItems(reminders){
-    if(reminders.length===0)return'<p style="color:#666;font-size:0.85rem;text-align:center;padding:16px">No reminders yet. Add your first reminder!</p>';
-    return reminders.sort(function(a,b){
-      if(a.completed!==b.completed)return a.completed?1:-1;
-      var pa={high:0,medium:1,low:2};return(pa[a.priority]||1)-(pa[b.priority]||1);
-    }).map(function(r){
-      var overdue=!r.completed&&r.dueDate&&new Date(r.dueDate)<new Date();
-      var colors={high:'#F44336',medium:'#FF9800',low:'#4CAF50'};
-      return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:10px;margin-bottom:6px;border-left:3px solid '+(overdue?'#F44336':colors[r.priority]||'#D4AF37')+'">'+
-        '<input type="checkbox" '+(r.completed?'checked':'')+' onchange="WeddingReminders.toggleComplete(\''+r.id+'\')" style="cursor:pointer;accent-color:#D4AF37">'+
-        '<div style="flex:1"><p style="color:'+(r.completed?'#666':'#E8E0D0')+';font-size:0.85rem;'+(r.completed?'text-decoration:line-through':'')+'">'+escapeHTML(r.title)+'</p>'+
-        '<p style="color:#666;font-size:0.72rem">'+(r.dueDate?new Date(r.dueDate).toLocaleDateString():'No date')+' &middot; '+r.category+'</p></div>'+
-        '<button onclick="WeddingReminders.deleteReminder(\''+r.id+'\')" style="padding:4px 8px;background:transparent;border:none;color:#666;cursor:pointer;font-size:0.75rem"><i class="fas fa-trash"></i></button>'+
-        '</div>';
-    }).join('');
-  }
-
-  W.showAddForm=function(){var f=document.getElementById('reminderAddForm');if(f)f.style.display='block';};
-  W.hideAddForm=function(){var f=document.getElementById('reminderAddForm');if(f)f.style.display='none';};
-  W.saveNew=function(){
-    var title=document.getElementById('remTitle').value;
-    var date=document.getElementById('remDate').value;
-    var priority=document.getElementById('remPriority').value;
-    if(!title){if(typeof notify==='function')notify('Enter a reminder title','warning');return;}
-    W.add({title:title,dueDate:date||null,priority:priority,category:'custom'});
-    W.hideAddForm();
-    W.renderRemindersPanel(document.getElementById('reminderList').parentElement.parentElement.id||'reminderPanel');
-    if(typeof notify==='function')notify('Reminder added!','success');
-  };
-  W.toggleComplete=function(id){
-    var r=getReminders().find(function(r){return r.id===id;});
-    if(r){W.update(id,{completed:!r.completed});}
-  };
-  W.deleteReminder=function(id){
-    W.delete(id);
-    var panel=document.getElementById('reminderList');
-    if(panel)panel.innerHTML=renderReminderItems(getReminders());
-  };
-
-  function escapeHTML(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
-  window.WeddingReminders=W;
-  console.log('Reminder Center initialized');
+  setInterval(function () { Reminders.checkAndSend(); }, 60000);
+  setTimeout(function () { Reminders.createAutoReminders(); }, 500);
 })();
